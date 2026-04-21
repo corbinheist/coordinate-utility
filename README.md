@@ -66,8 +66,28 @@ Then load `http://localhost:8000/coords.html` or the HTTPS URL.
 - **Plus Codes** — full 10-digit global codes only; no short-code resolution (no reference location to disambiguate).
 - **ECEF** — altitude is always rendered as 0. A typed ECEF value with non-zero altitude parses correctly, but other formats only show the surface projection; on re-display ECEF is rewritten with h=0.
 
+## Tests
+
+A small Node suite (`test.js`) extracts the `<script>` block from `coords.html`, stubs the browser globals, and runs round-trip + parser-flexibility + known-value assertions against every format. The tests always target the live code — no stale copy to drift from.
+
+```sh
+node --test test.js      # or: npm test
+```
+
+Covers:
+
+- **Round-trip** — for each format, `format(parse(x))` recovers `x` within per-format tolerance. Ten reference points including equator, southern hemisphere, Svalbard-adjacent latitudes, and UTM zone boundaries.
+- **Cross-format equivalence** — starting from the same lat/lon, all nine recovered points agree within the coarsest format's cell (Plus Code's 14 m).
+- **Known reference values** — Seattle UTM zone 10T, Sydney 56H, Torres del Paine 18F, Null Island ECEF ≈ (a, 0, 0), Seattle Plus Code `84VV…`, etc.
+- **Parser flexibility** — DD comma vs. space, DDM/DMS with degree/minute/second symbols, UTM with band letter vs. hemisphere letter vs. `mE`/`mN` unit suffix, MGRS with/without spaces, Plus Code with/without `+`, case-insensitive Geohash, `geo:` URI with altitude and `;params`.
+- **Error cases** — invalid zones, out-of-range coordinates, malformed Plus Codes, non-Earth ECEF, bad Geohash characters.
+
+Requires Node 18+ for the built-in test runner.
+
 ## Files
 
 - `coords.html` — the app (HTML + inline CSS + inline JS).
 - `index.html` — redirects to `coords.html` so the bare GitHub Pages URL works.
+- `test.js` — round-trip and flexibility tests against `coords.html`.
+- `package.json` — exposes `npm test`.
 - `.gitignore` — excludes `.claude/settings.local.json`.

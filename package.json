@@ -1,0 +1,12 @@
+{
+  "name": "coord-converter-util",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Single-file WGS84 coordinate converter (DD/DDM/DMS/UTM/MGRS/ECEF/geo:/Plus/Geohash) with live GPS tracking.",
+  "scripts": {
+    "test": "node --test test.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
