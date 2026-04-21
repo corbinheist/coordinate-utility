@@ -11,6 +11,7 @@ No build, no dependencies — `coords.html` is the whole app.
 - **Edit any format.** All nine fields are inputs; editing one parses and re-renders the other eight.
 - **One-click copy.** Each row has a compact icon-only copy button on the right; clicking it (or Tab + Enter) copies that field's value and briefly flashes green. Clicking the label on the left focuses the input for editing.
 - **Forgiving parsers.** Accepts pasted forms with or without degree/minute/second symbols, with or without spaces in MGRS, `lat,lon` or `lat lon`, hemisphere letters or signed numbers, UTM with band letter (`10T`), hemisphere letter (`10N`), or unit suffixes (`550200mE`).
+- **Three-way altitude.** Orthometric (H MSL), ellipsoidal (h WGS), and above-ground (AGL) — edit one, get the other two. Uses an embedded EGM96 geoid model (offline) and the Open-Meteo terrain API (async). Displayed as `m · ft`.
 - **Precision.** DD to 6 dp (~11 cm); DDM/DMS to sub-second; UTM/MGRS to 1 m; ECEF to 1 cm; Plus Code 10-digit (~14 m); Geohash 10-char (~60 cm).
 
 ## Supported formats
@@ -28,6 +29,9 @@ Ordered by coordinate system type: geographic (lat/lon) → projected grid → 3
 | GEO   | `geo:` URI (RFC 5870)     | `geo:47.6062,-122.3321`                         |
 | PLUS  | Plus Code (Open Location Code) | `84VVJM49+F5`                              |
 | HASH  | Geohash (base-32)         | `c23nb62w2`                                     |
+| H MSL | Orthometric altitude (m + ft) | `56.2 m · 184.4 ft`                          |
+| h WGS | Ellipsoidal altitude (m + ft) | `34.6 m · 113.5 ft`                          |
+| AGL   | Above ground level (m + ft)   | `12.0 m · 39.4 ft`                           |
 
 ## Running it
 
@@ -64,7 +68,7 @@ Then load `http://localhost:8000/coords.html` or the HTTPS URL.
 - **Zone irregularities** — Norway (32V) and Svalbard (31X–37X) exceptions are not handled. Rare in practice.
 - **MGRS row-band resolution** uses a single-cycle nearest-match against the band's central latitude; correct within normal latitude ranges.
 - **Plus Codes** — full 10-digit global codes only; no short-code resolution (no reference location to disambiguate).
-- **ECEF** — altitude is always rendered as 0. A typed ECEF value with non-zero altitude parses correctly, but other formats only show the surface projection; on re-display ECEF is rewritten with h=0.
+- **Altitude** — orthometric H derived via an embedded EGM96 geoid model (1-degree, ~1–2 m accuracy). AGL from the [Open-Meteo](https://open-meteo.com) Elevation API (Copernicus DEM, 90 m resolution, async). Relationship: `h = H + N`, `AGL = H − terrain`. Editing any one altitude recalculates the other two instantly (AGL requires a terrain lookup).
 
 ## Tests
 
@@ -80,13 +84,14 @@ Covers:
 - **Cross-format equivalence** — starting from the same lat/lon, all nine recovered points agree within the coarsest format's cell (Plus Code's 14 m).
 - **Known reference values** — Seattle UTM zone 10T, Sydney 56H, Torres del Paine 18F, Null Island ECEF ≈ (a, 0, 0), Seattle Plus Code `84VV…`, etc.
 - **Parser flexibility** — DD comma vs. space, DDM/DMS with degree/minute/second symbols, UTM with band letter vs. hemisphere letter vs. `mE`/`mN` unit suffix, MGRS with/without spaces, Plus Code with/without `+`, case-insensitive Geohash, `geo:` URI with altitude and `;params`.
+- **Altitude** — EGM96 undulation at three reference points (Seattle, Null Island, Indian Ocean), `fmtAlt`/`parseAlt` round-trip, ECEF altitude round-trip, `geo:` URI altitude capture/format, altitude identity `h = H + N`.
 - **Error cases** — invalid zones, out-of-range coordinates, malformed Plus Codes, non-Earth ECEF, bad Geohash characters.
 
 Requires Node 18+ for the built-in test runner.
 
 ## Files
 
-- `coords.html` — the app (HTML + inline CSS + inline JS).
+- `coords.html` — the app (HTML + inline CSS + inline JS, ~210 KB total / ~80 KB gzipped; includes embedded EGM96 geoid grid).
 - `index.html` — redirects to `coords.html` so the bare GitHub Pages URL works.
 - `test.js` — round-trip and flexibility tests against `coords.html`.
 - `package.json` — exposes `npm test`.
