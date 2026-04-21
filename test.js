@@ -25,7 +25,7 @@ function loadCoordsModule() {
   };
   const ctx = {
     document: {
-      getElementById: () => stubEl,
+      getElementById: () => ({ ...stubEl }),
       querySelector: () => stubEl,
       querySelectorAll: () => [],
       createElement: () => ({ ...stubEl, style: {} }),
@@ -33,6 +33,9 @@ function loadCoordsModule() {
     window: { isSecureContext: false, self: 1, top: 1 },
     navigator: { geolocation: null },
     location: { protocol: 'file:' },
+    setTimeout: (fn) => fn(),
+    clearTimeout: noop,
+    fetch: () => Promise.resolve({ ok: true, json: () => Promise.resolve({ elevation: [0] }) }),
   };
 
   const exports = [
@@ -44,12 +47,14 @@ function loadCoordsModule() {
     'parseGeoURI',
     'fmtDD', 'fmtDDM', 'fmtDMS', 'fmtUTM', 'fmtGeoURI', 'fmtECEF',
     'parseDD', 'parseLatLonPair', 'parseUTM', 'parseECEF',
+    'geoidUndulationEGM96', 'computeAltitudes', 'fmtAlt', 'parseAlt', 'altState',
   ];
   const factory = new Function(
-    'document', 'window', 'navigator', 'location',
+    'document', 'window', 'navigator', 'location', 'setTimeout', 'clearTimeout', 'fetch',
     src + '\nreturn { ' + exports.join(', ') + ' };'
   );
-  return factory(ctx.document, ctx.window, ctx.navigator, ctx.location);
+  return factory(ctx.document, ctx.window, ctx.navigator, ctx.location,
+    ctx.setTimeout, ctx.clearTimeout, ctx.fetch);
 }
 
 const C = loadCoordsModule();
@@ -307,4 +312,129 @@ test('rejects invalid input', () => {
   assert.throws(() => C.decodeOLC('84VVJM49+II'),         /character/);  // I is not in the OLC alphabet
   assert.throws(() => C.parseECEF('1 2 3'),               /Earth/);
   assert.throws(() => C.decodeGeohash('not-a-hash'),      /Geohash.*char/);
+});
+
+// ---------- EGM96 Geoid ----------
+
+test('EGM96: Seattle undulation ~ -21 m', () => {
+  const N = C.geoidUndulationEGM96(47.6, -122.3);
+  assert.ok(Math.abs(N - (-21)) < 3, `N=${N.toFixed(1)}, expected ~-21`);
+});
+
+test('EGM96: Null Island undulation ~ 17 m', () => {
+  const N = C.geoidUndulationEGM96(0, 0);
+  assert.ok(Math.abs(N - 17) < 3, `N=${N.toFixed(1)}, expected ~17`);
+});
+
+test('EGM96: Indian Ocean low ~ < -80 m', () => {
+  const N = C.geoidUndulationEGM96(5, 75);
+  assert.ok(N < -80, `N=${N.toFixed(1)}, expected < -80`);
+});
+
+test('EGM96: poles return values without crashing', () => {
+  const n90 = C.geoidUndulationEGM96(90, 0);
+  const s90 = C.geoidUndulationEGM96(-90, 0);
+  assert.ok(typeof n90 === 'number' && !isNaN(n90), 'North pole should return number');
+  assert.ok(typeof s90 === 'number' && !isNaN(s90), 'South pole should return number');
+});
+
+// ---------- Altitude formatting / parsing ----------
+
+test('fmtAlt / parseAlt round-trip', () => {
+  for (const val of [0, 100, -430, 8849, 0.5, -10.3]) {
+    const str = C.fmtAlt(val);
+    const recovered = C.parseAlt(str);
+    assert.ok(Math.abs(recovered - val) < 0.15, `round-trip ${val}: got ${recovered} from "${str}"`);
+  }
+});
+
+test('fmtAlt: null returns empty string', () => {
+  assert.equal(C.fmtAlt(null), '');
+});
+
+test('parseAlt: bare number → meters', () => {
+  assert.equal(C.parseAlt('100'), 100);
+  assert.equal(C.parseAlt('-430'), -430);
+});
+
+test('parseAlt: "100 ft" → meters', () => {
+  const m = C.parseAlt('100 ft');
+  assert.ok(Math.abs(m - 30.48) < 0.01, `got ${m}`);
+});
+
+test('parseAlt: "100 m" → meters', () => {
+  assert.equal(C.parseAlt('100 m'), 100);
+});
+
+test('parseAlt: empty/null returns null', () => {
+  assert.equal(C.parseAlt(''), null);
+  assert.equal(C.parseAlt(null), null);
+});
+
+// ---------- ECEF altitude round-trip ----------
+
+test('ECEF altitude round-trip: h=1000 at Seattle', () => {
+  const { X, Y, Z } = C.latLonToECEF(47.6, -122.3, 1000);
+  const { lat, lon, h } = C.ecefToLatLon(X, Y, Z);
+  assert.ok(Math.abs(lat - 47.6) < 1e-6, `lat=${lat}`);
+  assert.ok(Math.abs(lon - -122.3) < 1e-6, `lon=${lon}`);
+  assert.ok(Math.abs(h - 1000) < 0.1, `h=${h}, expected ~1000`);
+});
+
+test('ECEF altitude round-trip: h=0 at equator', () => {
+  const { X, Y, Z } = C.latLonToECEF(0, 0, 0);
+  const { h } = C.ecefToLatLon(X, Y, Z);
+  assert.ok(Math.abs(h) < 0.01, `h=${h}, expected ~0`);
+});
+
+test('ECEF altitude round-trip: h=8849 (Everest)', () => {
+  const { X, Y, Z } = C.latLonToECEF(27.988, 86.925, 8849);
+  const { h } = C.ecefToLatLon(X, Y, Z);
+  assert.ok(Math.abs(h - 8849) < 1, `h=${h}, expected ~8849`);
+});
+
+test('fmtECEF includes altitude when provided', () => {
+  const withAlt = C.fmtECEF(47.6, -122.3, 1000);
+  const without = C.fmtECEF(47.6, -122.3);
+  assert.notEqual(withAlt, without, 'ECEF with altitude should differ from h=0');
+});
+
+// ---------- geo:URI altitude ----------
+
+test('parseGeoURI: captures altitude', () => {
+  const result = C.parseGeoURI('geo:47.6,-122.3,100.5');
+  assert.equal(result.lat, 47.6);
+  assert.equal(result.lon, -122.3);
+  assert.equal(result.h, 100.5);
+});
+
+test('parseGeoURI: no altitude returns h=null', () => {
+  const result = C.parseGeoURI('geo:47.6,-122.3');
+  assert.equal(result.h, null);
+});
+
+test('fmtGeoURI: includes altitude when provided', () => {
+  const withAlt = C.fmtGeoURI(47.6, -122.3, 100);
+  assert.ok(withAlt.includes(',100.0'), `got "${withAlt}"`);
+  const without = C.fmtGeoURI(47.6, -122.3);
+  assert.ok(!without.includes(',100'), `should omit altitude: "${without}"`);
+});
+
+// ---------- Altitude identity: h = H + N ----------
+
+test('altitude identity: h = H + N for reference points', () => {
+  const refs = [
+    { lat: 47.6, lon: -122.3, h: 1000 },
+    { lat: 0, lon: 0, h: 0 },
+    { lat: -33.87, lon: 151.21, h: 500 },
+    { lat: 27.988, lon: 86.925, h: 8849 },
+    { lat: -30, lon: 20, h: -430 },
+  ];
+  for (const ref of refs) {
+    const N = C.geoidUndulationEGM96(ref.lat, ref.lon);
+    C.computeAltitudes(ref.lat, ref.lon, { h: ref.h, source: 'test' });
+    const { h, H } = C.altState;
+    assert.ok(Math.abs(h - (H + N)) < 0.01,
+      `(${ref.lat},${ref.lon}) h=${h} != H+N=${H}+${N}=${H+N}`);
+  }
 });
