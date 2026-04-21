@@ -1,0 +1,783 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>COORDS</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0a0a;
+    --surface: #141414;
+    --surface-2: #1c1c1c;
+    --border: #2a2a2a;
+    --border-hot: #3a3a3a;
+    --text: #e8e8e8;
+    --muted: #666;
+    --dim: #444;
+    --amber: #ffa000;
+    --amber-dim: #664000;
+    --red: #ff4040;
+    --green: #30d158;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-weight: 400;
+    min-height: 100vh;
+    font-feature-settings: "ss01", "cv02", "cv11";
+  }
+  body {
+    padding: 48px 24px;
+    display: flex;
+    justify-content: center;
+    background-image:
+      radial-gradient(circle at 20% 0%, rgba(255,160,0,0.04), transparent 40%),
+      linear-gradient(rgba(255,255,255,0.015) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,0.015) 1px, transparent 1px);
+    background-size: auto, 32px 32px, 32px 32px;
+  }
+  .app {
+    width: 100%;
+    max-width: 780px;
+  }
+  header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 16px;
+    margin-bottom: 24px;
+  }
+  .title {
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: 0.3em;
+    color: var(--amber);
+  }
+  .sub {
+    font-size: 11px;
+    letter-spacing: 0.2em;
+    color: var(--muted);
+    text-transform: uppercase;
+  }
+  .row {
+    display: grid;
+    grid-template-columns: 68px 1fr auto;
+    gap: 14px;
+    align-items: stretch;
+    margin-bottom: 10px;
+  }
+  .label {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.18em;
+    color: var(--muted);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    padding: 0 10px;
+    user-select: none;
+  }
+  .row.active .label {
+    color: var(--amber);
+    border-color: var(--amber-dim);
+  }
+  input {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: inherit;
+    font-size: 15px;
+    padding: 14px 16px;
+    outline: none;
+    width: 100%;
+    letter-spacing: 0.02em;
+    transition: border-color 0.12s ease;
+  }
+  input:focus {
+    border-color: var(--amber-dim);
+    background: var(--surface-2);
+  }
+  input::placeholder { color: var(--dim); }
+  .row.error input {
+    border-color: var(--red);
+    color: var(--red);
+  }
+  .copy {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--muted);
+    font-family: inherit;
+    font-size: 11px;
+    letter-spacing: 0.2em;
+    padding: 0 16px;
+    cursor: pointer;
+    transition: all 0.12s ease;
+    min-width: 64px;
+  }
+  .copy:hover {
+    color: var(--amber);
+    border-color: var(--amber-dim);
+  }
+  .copy.copied {
+    color: var(--green);
+    border-color: var(--green);
+  }
+  .controls {
+    display: flex;
+    gap: 10px;
+    margin-top: 20px;
+    padding-top: 20px;
+    border-top: 1px solid var(--border);
+    flex-wrap: wrap;
+  }
+  .btn {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    font-family: inherit;
+    font-size: 11px;
+    letter-spacing: 0.2em;
+    padding: 10px 16px;
+    cursor: pointer;
+    transition: all 0.12s ease;
+    text-transform: uppercase;
+  }
+  .btn:hover {
+    color: var(--text);
+    border-color: var(--border-hot);
+  }
+  .btn.preset:hover {
+    color: var(--amber);
+    border-color: var(--amber-dim);
+  }
+  .btn.locate {
+    color: var(--amber);
+    border-color: var(--amber-dim);
+  }
+  .btn.locate:hover {
+    background: var(--amber-dim);
+    color: #000;
+  }
+  .btn.locate.tracking {
+    background: var(--amber-dim);
+    color: var(--text);
+    border-color: var(--amber);
+    animation: pulse 1.8s ease-in-out infinite;
+  }
+  .btn.locate.tracking:hover {
+    background: var(--amber);
+    color: #000;
+  }
+  @keyframes pulse {
+    50% { opacity: 0.55; }
+  }
+  .status {
+    margin-top: 24px;
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 0.05em;
+    min-height: 16px;
+  }
+  .status.err { color: var(--red); }
+  .notes {
+    margin-top: 40px;
+    font-size: 11px;
+    color: var(--dim);
+    line-height: 1.8;
+    letter-spacing: 0.03em;
+    padding-top: 20px;
+    border-top: 1px dashed var(--border);
+  }
+  .notes b { color: var(--muted); font-weight: 500; }
+  @media (max-width: 560px) {
+    body { padding: 24px 12px; }
+    .row { grid-template-columns: 56px 1fr; }
+    .copy { grid-column: 1 / -1; padding: 8px; }
+    input { font-size: 13px; padding: 12px; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div class="title">COORDS</div>
+    <div class="sub">WGS84 · edit any field</div>
+  </header>
+
+  <div class="row" data-fmt="dd">
+    <label class="label" for="dd">DD</label>
+    <input id="dd" spellcheck="false" autocomplete="off" placeholder="47.6062, -122.3321">
+    <button class="copy" data-target="dd" aria-label="Copy decimal degrees">COPY</button>
+  </div>
+  <div class="row" data-fmt="ddm">
+    <label class="label" for="ddm">DDM</label>
+    <input id="ddm" spellcheck="false" autocomplete="off" placeholder="47° 36.372' N, 122° 19.926' W">
+    <button class="copy" data-target="ddm" aria-label="Copy degrees decimal minutes">COPY</button>
+  </div>
+  <div class="row" data-fmt="dms">
+    <label class="label" for="dms">DMS</label>
+    <input id="dms" spellcheck="false" autocomplete="off" placeholder="47° 36' 22.32&quot; N, 122° 19' 55.56&quot; W">
+    <button class="copy" data-target="dms" aria-label="Copy degrees minutes seconds">COPY</button>
+  </div>
+  <div class="row" data-fmt="utm">
+    <label class="label" for="utm">UTM</label>
+    <input id="utm" spellcheck="false" autocomplete="off" placeholder="10T 550200 5273800">
+    <button class="copy" data-target="utm" aria-label="Copy UTM">COPY</button>
+  </div>
+  <div class="row" data-fmt="mgrs">
+    <label class="label" for="mgrs">MGRS</label>
+    <input id="mgrs" spellcheck="false" autocomplete="off" placeholder="10T ET 50200 73800">
+    <button class="copy" data-target="mgrs" aria-label="Copy MGRS">COPY</button>
+  </div>
+
+  <div class="controls">
+    <button class="btn preset" data-lat="47.6062" data-lon="-122.3321">SEATTLE</button>
+    <button class="btn preset" data-lat="59.9139" data-lon="10.7522">OSLO</button>
+    <button class="btn preset" data-lat="-50.9423" data-lon="-72.7011">TORRES DEL PAINE</button>
+    <button class="btn preset" data-lat="38.8977" data-lon="-77.0365">WHITE HOUSE</button>
+    <button class="btn locate" id="locate" aria-pressed="false">◉ TRACK</button>
+    <button class="btn" id="clear">CLEAR</button>
+  </div>
+
+  <div class="status" id="status">&nbsp;</div>
+
+  <div class="notes">
+    <b>Precision:</b> DD shown to 6dp (~11 cm). DDM/DMS to sub-second. UTM/MGRS to 1 m.<br>
+    <b>MGRS format:</b> <code>GZD + 100km square + 5+5 digits</code>. Accepts pasted forms with or without spaces.<br>
+    <b>Polar regions:</b> UTM/MGRS valid from 80°S to 84°N only. UPS not implemented.<br>
+    <b>Zone exceptions:</b> Norway (32V) and Svalbard (31X–37X) irregularities not handled — edge cases, rare in practice.<br>
+    <b>Live tracking:</b> app opens in tracking mode and follows your GPS. Typing in a field or picking a preset switches to manual. Tap <b>◉ TRACK</b> to resume.<br>
+    <b>iPhone:</b> requires HTTPS or localhost — Safari blocks geolocation on <code>file://</code>. Drop on Tailscale/Caddy and it works.
+  </div>
+</div>
+
+<script>
+// ============================================================
+// WGS84 + UTM math (Snyder, "Map Projections—A Working Manual")
+// ============================================================
+const A = 6378137.0;
+const F = 1 / 298.257223563;
+const K0 = 0.9996;
+const E2 = 2 * F - F * F;
+const EP2 = E2 / (1 - E2);
+const D2R = Math.PI / 180;
+const R2D = 180 / Math.PI;
+
+function latLonToUTM(lat, lon) {
+  const zone = Math.floor((lon + 180) / 6) + 1;
+  const lon0 = ((zone - 1) * 6 - 180 + 3) * D2R;
+  const latR = lat * D2R;
+  const lonR = lon * D2R;
+
+  const sinLat = Math.sin(latR);
+  const cosLat = Math.cos(latR);
+  const tanLat = Math.tan(latR);
+
+  const N = A / Math.sqrt(1 - E2 * sinLat * sinLat);
+  const T = tanLat * tanLat;
+  const C = EP2 * cosLat * cosLat;
+  const Aa = cosLat * (lonR - lon0);
+
+  const M = A * (
+    (1 - E2/4 - 3*E2**2/64 - 5*E2**3/256) * latR
+    - (3*E2/8 + 3*E2**2/32 + 45*E2**3/1024) * Math.sin(2*latR)
+    + (15*E2**2/256 + 45*E2**3/1024) * Math.sin(4*latR)
+    - (35*E2**3/3072) * Math.sin(6*latR)
+  );
+
+  const easting = K0 * N * (
+    Aa + (1-T+C)*Aa**3/6
+    + (5-18*T+T*T+72*C-58*EP2)*Aa**5/120
+  ) + 500000;
+
+  let northing = K0 * (M + N * tanLat * (
+    Aa*Aa/2 + (5-T+9*C+4*C*C)*Aa**4/24
+    + (61-58*T+T*T+600*C-330*EP2)*Aa**6/720
+  ));
+  if (lat < 0) northing += 10000000;
+
+  return {
+    zone,
+    hemisphere: lat >= 0 ? 'N' : 'S',
+    easting,
+    northing,
+    band: latBand(lat)
+  };
+}
+
+function utmToLatLon(zone, hemisphere, easting, northing) {
+  if (zone < 1 || zone > 60) throw new Error('UTM: zone out of range (1-60)');
+  const x = easting - 500000;
+  let y = northing;
+  if (hemisphere === 'S') y -= 10000000;
+
+  const lon0 = ((zone - 1) * 6 - 180 + 3) * D2R;
+  const M = y / K0;
+  const mu = M / (A * (1 - E2/4 - 3*E2**2/64 - 5*E2**3/256));
+  const e1 = (1 - Math.sqrt(1-E2)) / (1 + Math.sqrt(1-E2));
+
+  const phi1 = mu
+    + (3*e1/2 - 27*e1**3/32) * Math.sin(2*mu)
+    + (21*e1**2/16 - 55*e1**4/32) * Math.sin(4*mu)
+    + (151*e1**3/96) * Math.sin(6*mu)
+    + (1097*e1**4/512) * Math.sin(8*mu);
+
+  const sinP = Math.sin(phi1);
+  const cosP = Math.cos(phi1);
+  const tanP = Math.tan(phi1);
+
+  const N1 = A / Math.sqrt(1 - E2*sinP*sinP);
+  const T1 = tanP*tanP;
+  const C1 = EP2 * cosP*cosP;
+  const R1 = A*(1-E2) / Math.pow(1-E2*sinP*sinP, 1.5);
+  const D = x / (N1 * K0);
+
+  const lat = (phi1 - (N1*tanP/R1) * (
+    D*D/2
+    - (5 + 3*T1 + 10*C1 - 4*C1*C1 - 9*EP2)*D**4/24
+    + (61 + 90*T1 + 298*C1 + 45*T1*T1 - 252*EP2 - 3*C1*C1)*D**6/720
+  )) * R2D;
+
+  const lon = (lon0 + (D
+    - (1 + 2*T1 + C1)*D**3/6
+    + (5 - 2*C1 + 28*T1 - 3*C1*C1 + 8*EP2 + 24*T1*T1)*D**5/120
+  ) / cosP) * R2D;
+
+  return { lat, lon };
+}
+
+function latBand(lat) {
+  if (lat < -80 || lat > 84) return '';
+  if (lat >= 72) return 'X';
+  const bands = 'CDEFGHJKLMNPQRSTUVWX';
+  return bands[Math.floor((lat + 80) / 8)];
+}
+
+function bandMinLat(band) {
+  const bands = 'CDEFGHJKLMNPQRSTUVWX';
+  const idx = bands.indexOf(band);
+  if (idx < 0) return null;
+  return -80 + idx * 8;
+}
+
+// ============================================================
+// MGRS
+// ============================================================
+const COL_SETS = ['ABCDEFGH', 'JKLMNPQR', 'STUVWXYZ'];
+const ROW_SET_ODD  = 'ABCDEFGHJKLMNPQRSTUV';
+const ROW_SET_EVEN = 'FGHJKLMNPQRSTUVABCDE';
+
+function utmToMGRS(utm) {
+  const { zone, band } = utm;
+  // Round once so UTM display and MGRS digits agree at the meter level
+  const eastingR = Math.round(utm.easting);
+  const northingR = Math.round(utm.northing);
+
+  const setIdx = ((zone - 1) % 3);
+  const colLetters = COL_SETS[setIdx];
+  const colIdx = Math.floor(eastingR / 100000) - 1;
+  if (colIdx < 0 || colIdx > 7) throw new Error('easting out of range');
+  const col = colLetters[colIdx];
+
+  const rowLetters = zone % 2 === 1 ? ROW_SET_ODD : ROW_SET_EVEN;
+  const rowIdx = Math.floor((northingR % 2000000) / 100000);
+  const row = rowLetters[rowIdx];
+
+  const e = (eastingR % 100000).toString().padStart(5, '0');
+  const n = (northingR % 100000).toString().padStart(5, '0');
+
+  return `${zone}${band} ${col}${row} ${e} ${n}`;
+}
+
+function mgrsToUTM(mgrs) {
+  const clean = mgrs.replace(/\s+/g, '').toUpperCase();
+  const m = clean.match(/^(\d{1,2})([C-HJ-NP-X])([A-HJ-NP-Z])([A-HJ-NP-V])(\d+)$/);
+  if (!m) throw new Error('Invalid MGRS');
+  const zone = parseInt(m[1]);
+  if (zone < 1 || zone > 60) throw new Error('Invalid zone');
+  const band = m[2];
+  const col = m[3];
+  const row = m[4];
+  const digits = m[5];
+  if (digits.length === 0 || digits.length % 2 !== 0 || digits.length > 10) {
+    throw new Error('MGRS digits must be even length, max 10');
+  }
+  const half = digits.length / 2;
+  const mult = Math.pow(10, 5 - half);
+  const e = parseInt(digits.substr(0, half)) * mult;
+  const n = parseInt(digits.substr(half)) * mult;
+
+  const setIdx = ((zone - 1) % 3);
+  const colIdx = COL_SETS[setIdx].indexOf(col);
+  if (colIdx < 0) throw new Error('Invalid column letter for zone');
+  const easting = (colIdx + 1) * 100000 + e;
+
+  const rowLetters = zone % 2 === 1 ? ROW_SET_ODD : ROW_SET_EVEN;
+  const rowIdx = rowLetters.indexOf(row);
+  if (rowIdx < 0) throw new Error('Invalid row letter');
+  let northingBase = rowIdx * 100000 + n;
+
+  // Find the 2 000 000 m cycle that puts us in the latitude band
+  const minLat = bandMinLat(band);
+  if (minLat === null) throw new Error('Invalid band letter');
+  const hemisphere = minLat >= 0 ? 'N' : 'S';
+  const approxUtm = latLonToUTM(minLat + 4, (zone - 1) * 6 - 180 + 3);
+  const target = approxUtm.northing;
+
+  let northing = northingBase;
+  // If S hemisphere, target > 0 in false-northing system; base already in [0, 2M)
+  // Adjust base to closest cycle of target
+  const cycle = 2000000;
+  const k = Math.round((target - northingBase) / cycle);
+  northing = northingBase + k * cycle;
+
+  return { zone, hemisphere, easting, northing, band };
+}
+
+// ============================================================
+// Formatters
+// ============================================================
+function fmtDD(lat, lon) {
+  return `${lat.toFixed(6)}, ${lon.toFixed(6)}`;
+}
+
+function fmtDDM(lat, lon) {
+  const f = (v, pos, neg) => {
+    const h = v >= 0 ? pos : neg;
+    const a = Math.abs(v);
+    const d = Math.floor(a);
+    const m = (a - d) * 60;
+    return `${d}° ${m.toFixed(3)}' ${h}`;
+  };
+  return `${f(lat, 'N', 'S')}, ${f(lon, 'E', 'W')}`;
+}
+
+function fmtDMS(lat, lon) {
+  const f = (v, pos, neg) => {
+    const h = v >= 0 ? pos : neg;
+    const a = Math.abs(v);
+    const d = Math.floor(a);
+    const mFull = (a - d) * 60;
+    const m = Math.floor(mFull);
+    const s = (mFull - m) * 60;
+    return `${d}° ${m}' ${s.toFixed(2)}" ${h}`;
+  };
+  return `${f(lat, 'N', 'S')}, ${f(lon, 'E', 'W')}`;
+}
+
+function fmtUTM(utm) {
+  return `${utm.zone}${utm.band} ${Math.round(utm.easting)} ${Math.round(utm.northing)}`;
+}
+
+// ============================================================
+// Parsers
+// ============================================================
+function parseDD(s) {
+  const m = s.trim().match(/^\s*(-?\d+(?:\.\d+)?)[\s,]+(-?\d+(?:\.\d+)?)\s*$/);
+  if (!m) throw new Error('DD: expected "lat, lon"');
+  const lat = parseFloat(m[1]);
+  const lon = parseFloat(m[2]);
+  if (Math.abs(lat) > 90 || Math.abs(lon) > 180) throw new Error('DD: out of range');
+  return { lat, lon };
+}
+
+function parseHemisphereValue(str, latOrLon) {
+  // Accepts: "47 36.372 N" / "47°36.372'N" / "N 47 36.372" / "-47 36.372"
+  const s = str.trim().replace(/[°'"′″]/g, ' ').replace(/\s+/g, ' ').trim();
+  const hemMatch = s.match(/([NSEW])/i);
+  let hem = hemMatch ? hemMatch[1].toUpperCase() : null;
+  const nums = s.replace(/[NSEW]/ig, '').trim().split(/\s+/).map(Number).filter(n => !isNaN(n));
+  if (nums.length === 0) throw new Error('no numeric values');
+  let sign = 1;
+  if (nums[0] < 0) { sign = -1; nums[0] = Math.abs(nums[0]); }
+  if (hem === 'S' || hem === 'W') sign = -1;
+  let val;
+  if (nums.length === 1) val = nums[0];
+  else if (nums.length === 2) val = nums[0] + nums[1]/60;
+  else val = nums[0] + nums[1]/60 + nums[2]/3600;
+  return sign * val;
+}
+
+function parseLatLonPair(s) {
+  // Split on comma if present, else try to split at hemisphere boundary
+  let parts;
+  if (s.includes(',')) {
+    parts = s.split(',');
+  } else {
+    // Find split: between first and second hemisphere letter, or midpoint heuristic
+    const re = /[NS]/i;
+    const firstHem = s.search(re);
+    if (firstHem >= 0) {
+      parts = [s.slice(0, firstHem + 1), s.slice(firstHem + 1)];
+    } else {
+      // Try splitting on second minus sign or space groups
+      throw new Error('ambiguous: use comma between lat and lon');
+    }
+  }
+  if (parts.length !== 2) throw new Error('expected lat and lon');
+  const lat = parseHemisphereValue(parts[0]);
+  const lon = parseHemisphereValue(parts[1]);
+  if (Math.abs(lat) > 90 || Math.abs(lon) > 180) throw new Error('out of range');
+  return { lat, lon };
+}
+
+function parseUTM(s) {
+  // Accepts "10T 550200 5273800", "10N 550200 5273800", "10 N 550200 5273800",
+  // and unit-suffixed forms like "550200mE 5273800mN". Strips the "m" unit
+  // without eating a bare hemisphere letter.
+  const clean = s.trim().toUpperCase()
+    .replace(/,/g, ' ')
+    .replace(/(\d)\s*M\s*([EN])\b/g, '$1')
+    .replace(/\s+/g, ' ');
+  const m = clean.match(/^(\d{1,2})\s*([A-Z])\s+(\d+(?:\.\d+)?)\s+(\d+(?:\.\d+)?)$/);
+  if (!m) throw new Error('UTM: expected "zone+band easting northing"');
+  const zone = parseInt(m[1]);
+  if (zone < 1 || zone > 60) throw new Error('UTM: zone out of range (1-60)');
+  const letter = m[2];
+  const easting = parseFloat(m[3]);
+  const northing = parseFloat(m[4]);
+  let hemisphere, band;
+  if ('CDEFGHJKLMNPQRSTUVWX'.includes(letter)) {
+    band = letter;
+    hemisphere = bandMinLat(band) >= 0 ? 'N' : 'S';
+  } else if (letter === 'N' || letter === 'S') {
+    hemisphere = letter;
+    band = null; // compute after lat/lon recovery
+  } else {
+    throw new Error('UTM: invalid band/hemisphere letter');
+  }
+  return { zone, hemisphere, easting, northing, band };
+}
+
+// ============================================================
+// Master state: canonical DD, broadcast to all fields
+// ============================================================
+const fields = ['dd', 'ddm', 'dms', 'utm', 'mgrs'];
+const inputs = {};
+fields.forEach(f => inputs[f] = document.getElementById(f));
+const statusEl = document.getElementById('status');
+const locateBtn = document.getElementById('locate');
+
+let updating = false;
+let watchId = null;
+let lastAccuracy = null;
+let lastFixTime = null;
+let changeTimer = null;
+
+function isTracking() { return watchId !== null; }
+
+function render(lat, lon, skip) {
+  updating = true;
+  try {
+    const utm = latLonToUTM(lat, lon);
+    if (skip !== 'dd')   inputs.dd.value   = fmtDD(lat, lon);
+    if (skip !== 'ddm')  inputs.ddm.value  = fmtDDM(lat, lon);
+    if (skip !== 'dms')  inputs.dms.value  = fmtDMS(lat, lon);
+    if (skip !== 'utm')  inputs.utm.value  = fmtUTM(utm);
+    if (skip !== 'mgrs') inputs.mgrs.value = utmToMGRS(utm);
+    fields.forEach(f => document.querySelector(`[data-fmt="${f}"]`).classList.remove('error'));
+    statusEl.textContent = `lat ${lat.toFixed(6)}  lon ${lon.toFixed(6)}  ·  zone ${utm.zone}${utm.band}`;
+    statusEl.classList.remove('err');
+  } finally {
+    updating = false;
+  }
+}
+
+function handleChange(fmt) {
+  if (updating) return;
+  const raw = inputs[fmt].value.trim();
+  if (!raw) return;
+  const row = document.querySelector(`[data-fmt="${fmt}"]`);
+  try {
+    let lat, lon;
+    if (fmt === 'dd') {
+      ({ lat, lon } = parseDD(raw));
+    } else if (fmt === 'ddm' || fmt === 'dms') {
+      ({ lat, lon } = parseLatLonPair(raw));
+    } else if (fmt === 'utm') {
+      const utm = parseUTM(raw);
+      ({ lat, lon } = utmToLatLon(utm.zone, utm.hemisphere, utm.easting, utm.northing));
+    } else if (fmt === 'mgrs') {
+      const utm = mgrsToUTM(raw);
+      ({ lat, lon } = utmToLatLon(utm.zone, utm.hemisphere, utm.easting, utm.northing));
+    }
+    row.classList.remove('error');
+    render(lat, lon, fmt);
+  } catch (err) {
+    row.classList.add('error');
+    statusEl.textContent = `${fmt.toUpperCase()}: ${err.message}`;
+    statusEl.classList.add('err');
+  }
+}
+
+function onInput(f) {
+  if (updating) return;
+  if (isTracking()) stopTracking('manual');
+  clearTimeout(changeTimer);
+  changeTimer = setTimeout(() => handleChange(f), 250);
+}
+
+fields.forEach(f => {
+  inputs[f].addEventListener('input', () => onInput(f));
+  inputs[f].addEventListener('focus', () => {
+    document.querySelectorAll('.row').forEach(r => r.classList.remove('active'));
+    document.querySelector(`[data-fmt="${f}"]`).classList.add('active');
+  });
+});
+
+// Copy buttons
+document.querySelectorAll('.copy').forEach(btn => {
+  btn.addEventListener('click', async () => {
+    const target = btn.dataset.target;
+    const val = inputs[target].value;
+    if (!val) return;
+    try {
+      await navigator.clipboard.writeText(val);
+      btn.classList.add('copied');
+      const orig = btn.textContent;
+      btn.textContent = 'OK';
+      setTimeout(() => {
+        btn.classList.remove('copied');
+        btn.textContent = orig;
+      }, 900);
+    } catch (e) {
+      statusEl.textContent = 'clipboard blocked';
+      statusEl.classList.add('err');
+    }
+  });
+});
+
+// Presets → manual override
+document.querySelectorAll('.preset').forEach(btn => {
+  btn.addEventListener('click', () => {
+    if (isTracking()) stopTracking('manual');
+    const lat = parseFloat(btn.dataset.lat);
+    const lon = parseFloat(btn.dataset.lon);
+    render(lat, lon);
+  });
+});
+
+// Clear → manual override
+document.getElementById('clear').addEventListener('click', () => {
+  if (isTracking()) stopTracking('manual');
+  fields.forEach(f => inputs[f].value = '');
+  document.querySelectorAll('.row').forEach(r => r.classList.remove('error'));
+  statusEl.innerHTML = '&nbsp;';
+  statusEl.classList.remove('err');
+  inputs.dd.focus();
+});
+
+// ============================================================
+// Geolocation — watchPosition with manual override
+// ============================================================
+function diagnoseEnv() {
+  const flags = [];
+  if (!('geolocation' in navigator)) flags.push('no geolocation API');
+  if (!window.isSecureContext) {
+    flags.push(`insecure context (${location.protocol}) — serve over HTTPS or localhost`);
+  }
+  if (window.self !== window.top) flags.push('inside iframe');
+  return flags;
+}
+
+function updateLocateBtn() {
+  if (isTracking()) {
+    locateBtn.classList.add('tracking');
+    locateBtn.textContent = '◉ TRACKING';
+    locateBtn.setAttribute('aria-pressed', 'true');
+  } else {
+    locateBtn.classList.remove('tracking');
+    locateBtn.textContent = '◉ TRACK';
+    locateBtn.setAttribute('aria-pressed', 'false');
+  }
+}
+
+function fmtLiveSuffix() {
+  if (lastAccuracy == null || lastFixTime == null) return '';
+  const t = lastFixTime.toTimeString().slice(0, 8);
+  return `  ·  ±${Math.round(lastAccuracy)}m  ·  ${t}`;
+}
+
+function startTracking() {
+  if (isTracking()) return;
+  const flags = diagnoseEnv();
+  if (!navigator.geolocation || !window.isSecureContext) {
+    statusEl.classList.add('err');
+    statusEl.textContent = `manual mode — ${flags.join(' · ') || 'geolocation unavailable'}`;
+    updateLocateBtn();
+    return;
+  }
+
+  statusEl.classList.remove('err');
+  statusEl.textContent = '◉ acquiring GPS…';
+
+  watchId = navigator.geolocation.watchPosition(
+    (pos) => {
+      const { latitude, longitude, accuracy } = pos.coords;
+      lastAccuracy = accuracy;
+      lastFixTime = new Date();
+      render(latitude, longitude);
+      statusEl.textContent += fmtLiveSuffix();
+    },
+    (err) => {
+      // PERMISSION_DENIED is terminal; UNAVAILABLE/TIMEOUT are transient
+      if (err.code === 1) {
+        stopTracking();
+        statusEl.classList.add('err');
+        statusEl.textContent = 'denied — Settings → Safari → Location, then tap ◉ TRACK';
+        return;
+      }
+      statusEl.classList.add('err');
+      if (err.code === 2) statusEl.textContent = 'GPS unavailable (no fix) — still trying…';
+      else if (err.code === 3) statusEl.textContent = 'GPS timeout — still trying…';
+      else statusEl.textContent = `GPS error: ${err.message}`;
+    },
+    { enableHighAccuracy: true, timeout: 30000, maximumAge: 0 }
+  );
+  updateLocateBtn();
+}
+
+function stopTracking(reason) {
+  if (watchId !== null) {
+    navigator.geolocation.clearWatch(watchId);
+    watchId = null;
+  }
+  lastAccuracy = null;
+  lastFixTime = null;
+  updateLocateBtn();
+  if (reason === 'manual') {
+    statusEl.classList.remove('err');
+    statusEl.textContent = 'manual override — tap ◉ TRACK to resume live tracking';
+  }
+}
+
+locateBtn.addEventListener('click', () => {
+  if (isTracking()) stopTracking('manual');
+  else startTracking();
+});
+
+// Env warning on load (persistent hint)
+(() => {
+  const flags = diagnoseEnv();
+  if (flags.length) {
+    const note = document.createElement('div');
+    note.style.cssText = 'margin-top:12px;font-size:10px;color:var(--dim);letter-spacing:0.1em;width:100%;';
+    note.textContent = `⚠ ${flags.join(' · ')}`;
+    document.querySelector('.controls').appendChild(note);
+  }
+})();
+
+// Auto-start tracking on load; falls back to empty manual mode if unavailable
+updateLocateBtn();
+startTracking();
+</script>
+</body>
+</html>
