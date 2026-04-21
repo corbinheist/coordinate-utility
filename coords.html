@@ -868,6 +868,7 @@ function updateHint(fmt) {
     const { lat, lon } = parseLatLonPair(raw);
     const canonical = fmt === 'ddm' ? fmtDDM(lat, lon) : fmtDMS(lat, lon);
     if (canonical === raw) {
+      // Already canonical — nothing left to preview
       el.textContent = '';
       el.classList.remove('preview');
     } else {
@@ -875,8 +876,9 @@ function updateHint(fmt) {
       el.classList.add('preview');
     }
   } catch (e) {
-    // Unparseable — stay quiet (the red border + status carry the error)
-    el.textContent = '';
+    // Partial or unparseable input (e.g., "47" on its own) — keep the
+    // template visible so the user still sees the expected shape.
+    el.textContent = HINT_TEMPLATES[fmt];
     el.classList.remove('preview');
   }
 }
