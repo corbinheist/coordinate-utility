@@ -237,6 +237,26 @@
     <input id="mgrs" spellcheck="false" autocomplete="off" placeholder="10T ET 50200 73800">
     <button class="copy" data-target="mgrs" aria-label="Copy MGRS">COPY</button>
   </div>
+  <div class="row" data-fmt="geo">
+    <label class="label" for="geo">GEO</label>
+    <input id="geo" spellcheck="false" autocomplete="off" placeholder="geo:47.6062,-122.3321">
+    <button class="copy" data-target="geo" aria-label="Copy geo URI">COPY</button>
+  </div>
+  <div class="row" data-fmt="plus">
+    <label class="label" for="plus">PLUS</label>
+    <input id="plus" spellcheck="false" autocomplete="off" placeholder="84VVJM49+F5">
+    <button class="copy" data-target="plus" aria-label="Copy Plus Code">COPY</button>
+  </div>
+  <div class="row" data-fmt="hash">
+    <label class="label" for="hash">HASH</label>
+    <input id="hash" spellcheck="false" autocomplete="off" placeholder="c23nb62w2">
+    <button class="copy" data-target="hash" aria-label="Copy Geohash">COPY</button>
+  </div>
+  <div class="row" data-fmt="ecef">
+    <label class="label" for="ecef">ECEF</label>
+    <input id="ecef" spellcheck="false" autocomplete="off" placeholder="-2291628.00, -3637094.00, 4670080.00">
+    <button class="copy" data-target="ecef" aria-label="Copy ECEF">COPY</button>
+  </div>
 
   <div class="controls">
     <button class="btn preset" data-lat="47.6062" data-lon="-122.3321">SEATTLE</button>
@@ -250,8 +270,12 @@
   <div class="status" id="status">&nbsp;</div>
 
   <div class="notes">
-    <b>Precision:</b> DD shown to 6dp (~11 cm). DDM/DMS to sub-second. UTM/MGRS to 1 m.<br>
-    <b>MGRS format:</b> <code>GZD + 100km square + 5+5 digits</code>. Accepts pasted forms with or without spaces.<br>
+    <b>Precision:</b> DD 6dp (~11 cm) · DDM/DMS sub-second · UTM/MGRS 1 m · Geohash 10-char (~60 cm) · Plus Code 10-digit (~14 m) · ECEF 1 cm.<br>
+    <b>MGRS:</b> <code>GZD + 100km square + 5+5 digits</code>. Accepts forms with or without spaces.<br>
+    <b>Plus Code:</b> full 10-digit global code only (e.g. <code>84VVJM49+F5</code>). No short-code resolution.<br>
+    <b>Geohash:</b> base-32, case-insensitive. Any length from 1 upward — longer = more precise.<br>
+    <b>ECEF:</b> WGS84 geocentric, altitude assumed 0 — non-surface points lose elevation on round-trip.<br>
+    <b>geo: URI:</b> RFC 5870. Parses optional altitude and <code>;params</code>; display omits both.<br>
     <b>Polar regions:</b> UTM/MGRS valid from 80°S to 84°N only. UPS not implemented.<br>
     <b>Zone exceptions:</b> Norway (32V) and Svalbard (31X–37X) irregularities not handled — edge cases, rare in practice.<br>
     <b>Live tracking:</b> app opens in tracking mode and follows your GPS. Typing in a field or picking a preset switches to manual. Tap <b>◉ TRACK</b> to resume.<br>
@@ -443,6 +467,130 @@ function mgrsToUTM(mgrs) {
 }
 
 // ============================================================
+// ECEF (Earth-Centered Earth-Fixed), WGS84, altitude = 0
+// ============================================================
+function latLonToECEF(lat, lon, h = 0) {
+  const latR = lat * D2R;
+  const lonR = lon * D2R;
+  const sinLat = Math.sin(latR);
+  const cosLat = Math.cos(latR);
+  const N = A / Math.sqrt(1 - E2 * sinLat * sinLat);
+  const X = (N + h) * cosLat * Math.cos(lonR);
+  const Y = (N + h) * cosLat * Math.sin(lonR);
+  const Z = (N * (1 - E2) + h) * sinLat;
+  return { X, Y, Z };
+}
+
+function ecefToLatLon(X, Y, Z) {
+  // Bowring's closed-form (altitude discarded)
+  const B = A * Math.sqrt(1 - E2);
+  const p = Math.sqrt(X * X + Y * Y);
+  const theta = Math.atan2(Z * A, p * B);
+  const sinT = Math.sin(theta);
+  const cosT = Math.cos(theta);
+  const lat = Math.atan2(
+    Z + EP2 * B * sinT * sinT * sinT,
+    p - E2 * A * cosT * cosT * cosT
+  ) * R2D;
+  const lon = Math.atan2(Y, X) * R2D;
+  return { lat, lon };
+}
+
+// ============================================================
+// Geohash (base-32, bit-interleaved)
+// ============================================================
+const GEOHASH_ALPHABET = '0123456789bcdefghjkmnpqrstuvwxyz';
+
+function encodeGeohash(lat, lon, precision = 10) {
+  let latLo = -90, latHi = 90, lonLo = -180, lonHi = 180;
+  let code = '', bit = 0, ch = 0, even = true;
+  while (code.length < precision) {
+    if (even) {
+      const mid = (lonLo + lonHi) / 2;
+      if (lon >= mid) { ch = (ch << 1) | 1; lonLo = mid; }
+      else { ch = ch << 1; lonHi = mid; }
+    } else {
+      const mid = (latLo + latHi) / 2;
+      if (lat >= mid) { ch = (ch << 1) | 1; latLo = mid; }
+      else { ch = ch << 1; latHi = mid; }
+    }
+    even = !even;
+    if (++bit === 5) { code += GEOHASH_ALPHABET[ch]; bit = 0; ch = 0; }
+  }
+  return code;
+}
+
+function decodeGeohash(code) {
+  const c = code.trim().toLowerCase();
+  if (!c) throw new Error('Geohash: empty');
+  let latLo = -90, latHi = 90, lonLo = -180, lonHi = 180;
+  let even = true;
+  for (const char of c) {
+    const idx = GEOHASH_ALPHABET.indexOf(char);
+    if (idx < 0) throw new Error(`Geohash: invalid char "${char}"`);
+    for (let b = 4; b >= 0; b--) {
+      const bit = (idx >> b) & 1;
+      if (even) {
+        const mid = (lonLo + lonHi) / 2;
+        if (bit) lonLo = mid; else lonHi = mid;
+      } else {
+        const mid = (latLo + latHi) / 2;
+        if (bit) latLo = mid; else latHi = mid;
+      }
+      even = !even;
+    }
+  }
+  return { lat: (latLo + latHi) / 2, lon: (lonLo + lonHi) / 2 };
+}
+
+// ============================================================
+// Plus Code (Open Location Code, 10-digit full global code)
+// ============================================================
+const OLC_ALPHABET = '23456789CFGHJMPQRVWX';
+
+function encodeOLC(lat, lon) {
+  let latR = Math.max(0, Math.min(180 - 1e-10, lat + 90));
+  let lonR = ((lon + 180) % 360 + 360) % 360;
+  let code = '', res = 20;
+  for (let p = 0; p < 5; p++) {
+    const ld = Math.floor(latR / res); latR -= ld * res; code += OLC_ALPHABET[ld];
+    const od = Math.floor(lonR / res); lonR -= od * res; code += OLC_ALPHABET[od];
+    res /= 20;
+  }
+  return code.slice(0, 8) + '+' + code.slice(8);
+}
+
+function decodeOLC(s) {
+  const c = s.trim().toUpperCase().replace(/\+/g, '');
+  if (c.length < 10) throw new Error('Plus: full 10-digit code required');
+  let latR = 0, lonR = 0, res = 20;
+  for (let i = 0; i < 10; i += 2) {
+    const ld = OLC_ALPHABET.indexOf(c[i]);
+    const od = OLC_ALPHABET.indexOf(c[i + 1]);
+    if (ld < 0 || od < 0) throw new Error('Plus: invalid character');
+    latR += ld * res;
+    lonR += od * res;
+    res /= 20;
+  }
+  // Center of the level-5 cell (res is now 1/20 of that cell size)
+  return { lat: latR + res * 10 - 90, lon: lonR + res * 10 - 180 };
+}
+
+// ============================================================
+// geo: URI (RFC 5870) — "geo:lat,lon[,alt][;params]"
+// ============================================================
+function parseGeoURI(s) {
+  const m = s.trim().match(
+    /^geo:\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)(?:\s*,\s*-?\d+(?:\.\d+)?)?(?:\s*;.*)?$/i
+  );
+  if (!m) throw new Error('geo: expected "geo:lat,lon"');
+  const lat = parseFloat(m[1]);
+  const lon = parseFloat(m[2]);
+  if (Math.abs(lat) > 90 || Math.abs(lon) > 180) throw new Error('geo: out of range');
+  return { lat, lon };
+}
+
+// ============================================================
 // Formatters
 // ============================================================
 function fmtDD(lat, lon) {
@@ -475,6 +623,27 @@ function fmtDMS(lat, lon) {
 
 function fmtUTM(utm) {
   return `${utm.zone}${utm.band} ${Math.round(utm.easting)} ${Math.round(utm.northing)}`;
+}
+
+function fmtGeoURI(lat, lon) {
+  return `geo:${lat.toFixed(6)},${lon.toFixed(6)}`;
+}
+
+function fmtECEF(lat, lon) {
+  const { X, Y, Z } = latLonToECEF(lat, lon);
+  return `${X.toFixed(2)}, ${Y.toFixed(2)}, ${Z.toFixed(2)}`;
+}
+
+function parseECEF(s) {
+  const clean = s.trim().replace(/,/g, ' ').replace(/\s+/g, ' ');
+  const m = clean.match(/^(-?\d+(?:\.\d+)?)\s+(-?\d+(?:\.\d+)?)\s+(-?\d+(?:\.\d+)?)$/);
+  if (!m) throw new Error('ECEF: expected "X Y Z" in meters');
+  const X = parseFloat(m[1]);
+  const Y = parseFloat(m[2]);
+  const Z = parseFloat(m[3]);
+  const r = Math.sqrt(X * X + Y * Y + Z * Z);
+  if (r < 6e6 || r > 7.5e6) throw new Error('ECEF: not near Earth surface (altitude assumed 0)');
+  return ecefToLatLon(X, Y, Z);
 }
 
 // ============================================================
@@ -560,7 +729,7 @@ function parseUTM(s) {
 // ============================================================
 // Master state: canonical DD, broadcast to all fields
 // ============================================================
-const fields = ['dd', 'ddm', 'dms', 'utm', 'mgrs'];
+const fields = ['dd', 'ddm', 'dms', 'utm', 'mgrs', 'geo', 'plus', 'hash', 'ecef'];
 const inputs = {};
 fields.forEach(f => inputs[f] = document.getElementById(f));
 const statusEl = document.getElementById('status');
@@ -583,6 +752,10 @@ function render(lat, lon, skip) {
     if (skip !== 'dms')  inputs.dms.value  = fmtDMS(lat, lon);
     if (skip !== 'utm')  inputs.utm.value  = fmtUTM(utm);
     if (skip !== 'mgrs') inputs.mgrs.value = utmToMGRS(utm);
+    if (skip !== 'geo')  inputs.geo.value  = fmtGeoURI(lat, lon);
+    if (skip !== 'plus') inputs.plus.value = encodeOLC(lat, lon);
+    if (skip !== 'hash') inputs.hash.value = encodeGeohash(lat, lon);
+    if (skip !== 'ecef') inputs.ecef.value = fmtECEF(lat, lon);
     fields.forEach(f => document.querySelector(`[data-fmt="${f}"]`).classList.remove('error'));
     statusEl.textContent = `lat ${lat.toFixed(6)}  lon ${lon.toFixed(6)}  ·  zone ${utm.zone}${utm.band}`;
     statusEl.classList.remove('err');
@@ -608,6 +781,14 @@ function handleChange(fmt) {
     } else if (fmt === 'mgrs') {
       const utm = mgrsToUTM(raw);
       ({ lat, lon } = utmToLatLon(utm.zone, utm.hemisphere, utm.easting, utm.northing));
+    } else if (fmt === 'geo') {
+      ({ lat, lon } = parseGeoURI(raw));
+    } else if (fmt === 'plus') {
+      ({ lat, lon } = decodeOLC(raw));
+    } else if (fmt === 'hash') {
+      ({ lat, lon } = decodeGeohash(raw));
+    } else if (fmt === 'ecef') {
+      ({ lat, lon } = parseECEF(raw));
     }
     row.classList.remove('error');
     render(lat, lon, fmt);
