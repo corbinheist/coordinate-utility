@@ -9,7 +9,7 @@ No build, no dependencies — `coords.html` is the whole app.
 - **Live tracking on load.** Uses `navigator.geolocation.watchPosition`, so the fields follow your position as you move. Each fix shows accuracy (`±Nm`) and timestamp.
 - **Manual override, any time.** Type in any field, pick a preset, or hit `CLEAR`, and tracking switches off. Tap `◉ TRACK` to resume.
 - **Edit any format.** All nine fields are inputs; editing one parses and re-renders the other eight.
-- **Click-to-copy labels.** Each coordinate label (`DD`, `DMS`, `MGRS`, …) is itself a copy button — click it (or Tab + Enter) to copy that field's value. A small transparent copy icon next to the label text marks it as actionable; it flashes green when the clipboard write succeeds.
+- **One-click copy.** Each row has a compact icon-only copy button on the right; clicking it (or Tab + Enter) copies that field's value and briefly flashes green. Clicking the label on the left focuses the input for editing.
 - **Forgiving parsers.** Accepts pasted forms with or without degree/minute/second symbols, with or without spaces in MGRS, `lat,lon` or `lat lon`, hemisphere letters or signed numbers, UTM with band letter (`10T`), hemisphere letter (`10N`), or unit suffixes (`550200mE`).
 - **Precision.** DD to 6 dp (~11 cm); DDM/DMS to sub-second; UTM/MGRS to 1 m; Geohash 10-char (~60 cm); Plus Code 10-digit (~14 m); ECEF to 1 cm.
 
