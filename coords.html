@@ -120,6 +120,7 @@
   .copy-icon {
     opacity: 0.55;
     transition: opacity 0.12s ease;
+    pointer-events: none;
   }
   .copy:hover .copy-icon,
   .copy.copied .copy-icon { opacity: 1; }
@@ -839,7 +840,13 @@ document.querySelectorAll('.copy[data-copy]').forEach(btn => {
   btn.addEventListener('click', async () => {
     const target = btn.dataset.copy;
     const val = inputs[target].value;
-    if (!val) return;
+    if (!val) {
+      statusEl.classList.add('err');
+      statusEl.textContent = isTracking()
+        ? `${target.toUpperCase()} empty — waiting for GPS fix`
+        : `${target.toUpperCase()} empty — enter a value or tap a preset`;
+      return;
+    }
     try {
       await navigator.clipboard.writeText(val);
       btn.classList.add('copied');
