@@ -208,6 +208,35 @@ test('parseLatLonPair round-trips DMS strings with symbols', () => {
   assert.ok(Math.abs(lon - -122.3321) < 1e-4, `lon=${lon}`);
 });
 
+test('DDM/DMS blur-snap: symbol-less input canonicalizes idempotently', () => {
+  // Mimics the UX: user types a loose form, blur-snap re-formats via parseLatLonPair + fmtDDM.
+  for (const loose of [
+    '47 36.372 N 122 19.926 W',
+    '47 36.372N 122 19.926W',
+    "47° 36.372' N, 122° 19.926' W",  // already canonical
+  ]) {
+    const { lat, lon } = C.parseLatLonPair(loose);
+    const canon1 = C.fmtDDM(lat, lon);
+    const { lat: l2, lon: lo2 } = C.parseLatLonPair(canon1);
+    const canon2 = C.fmtDDM(l2, lo2);
+    assert.equal(canon1, canon2, `snap should be idempotent for "${loose}"`);
+  }
+});
+
+test('DMS blur-snap: symbol-less input canonicalizes idempotently', () => {
+  for (const loose of [
+    '47 36 22.32 N 122 19 55.56 W',
+    '47 36 22.32N 122 19 55.56W',
+    `47° 36' 22.32" N, 122° 19' 55.56" W`,
+  ]) {
+    const { lat, lon } = C.parseLatLonPair(loose);
+    const canon1 = C.fmtDMS(lat, lon);
+    const { lat: l2, lon: lo2 } = C.parseLatLonPair(canon1);
+    const canon2 = C.fmtDMS(l2, lo2);
+    assert.equal(canon1, canon2, `snap should be idempotent for "${loose}"`);
+  }
+});
+
 test('parseUTM accepts hemisphere/band letter with whitespace (regression)', () => {
   // This form was broken before the parseUTM unit-stripping fix — the old
   // [,MEN] replace ate the letter. N is both a valid MGRS band (8°–16°N)

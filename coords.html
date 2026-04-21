@@ -72,6 +72,28 @@
     align-items: stretch;
     margin-bottom: 6px;
   }
+  .row.with-hint {
+    grid-template-rows: auto auto;
+    row-gap: 2px;
+  }
+  .row.with-hint .label { grid-row: 1 / span 2; }
+  .hint {
+    grid-column: 2 / 4;
+    grid-row: 2;
+    font-size: 10px;
+    color: var(--dim);
+    letter-spacing: 0.03em;
+    padding: 0 2px;
+    min-height: 14px;
+    line-height: 1.3;
+    font-style: italic;
+    user-select: none;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .hint:empty { min-height: 0; }
+  .hint.preview { color: var(--muted); font-style: normal; }
   .label {
     display: flex;
     align-items: center;
@@ -238,15 +260,17 @@
     <input id="dd" spellcheck="false" autocomplete="off" placeholder="47.6062, -122.3321">
     <button class="copy" type="button" data-copy="dd" aria-label="Copy decimal degrees"><svg class="copy-icon" width="14" height="14" aria-hidden="true"><use href="#icon-copy"/></svg></button>
   </div>
-  <div class="row" data-fmt="ddm">
+  <div class="row with-hint" data-fmt="ddm">
     <label class="label" for="ddm">DDM</label>
     <input id="ddm" spellcheck="false" autocomplete="off" placeholder="47° 36.372' N, 122° 19.926' W">
     <button class="copy" type="button" data-copy="ddm" aria-label="Copy degrees decimal minutes"><svg class="copy-icon" width="14" height="14" aria-hidden="true"><use href="#icon-copy"/></svg></button>
+    <div class="hint" id="hint-ddm"></div>
   </div>
-  <div class="row" data-fmt="dms">
+  <div class="row with-hint" data-fmt="dms">
     <label class="label" for="dms">DMS</label>
     <input id="dms" spellcheck="false" autocomplete="off" placeholder="47° 36' 22.32&quot; N, 122° 19' 55.56&quot; W">
     <button class="copy" type="button" data-copy="dms" aria-label="Copy degrees minutes seconds"><svg class="copy-icon" width="14" height="14" aria-hidden="true"><use href="#icon-copy"/></svg></button>
+    <div class="hint" id="hint-dms"></div>
   </div>
   <div class="row" data-fmt="utm">
     <label class="label" for="utm">UTM</label>
@@ -756,6 +780,14 @@ fields.forEach(f => inputs[f] = document.getElementById(f));
 const statusEl = document.getElementById('status');
 const locateBtn = document.getElementById('locate');
 
+// Fields that get a preview hint below the input
+const HINT_TEMPLATES = {
+  ddm: "47° 36.372' N, 122° 19.926' W",
+  dms: `47° 36' 22.32" N, 122° 19' 55.56" W`,
+};
+const hintEls = {};
+Object.keys(HINT_TEMPLATES).forEach(f => hintEls[f] = document.getElementById('hint-' + f));
+
 let updating = false;
 let watchId = null;
 let lastAccuracy = null;
@@ -778,6 +810,7 @@ function render(lat, lon, skip) {
     if (skip !== 'plus') inputs.plus.value = encodeOLC(lat, lon);
     if (skip !== 'hash') inputs.hash.value = encodeGeohash(lat, lon);
     fields.forEach(f => document.querySelector(`[data-fmt="${f}"]`).classList.remove('error'));
+    Object.keys(hintEls).forEach(f => { if (f !== skip) updateHint(f); });
     statusEl.textContent = `lat ${lat.toFixed(6)}  lon ${lon.toFixed(6)}  ·  zone ${utm.zone}${utm.band}`;
     statusEl.classList.remove('err');
   } finally {
@@ -788,7 +821,7 @@ function render(lat, lon, skip) {
 function handleChange(fmt) {
   if (updating) return;
   const raw = inputs[fmt].value.trim();
-  if (!raw) return;
+  if (!raw) { updateHint(fmt); return; }
   const row = document.querySelector(`[data-fmt="${fmt}"]`);
   try {
     let lat, lon;
@@ -813,16 +846,59 @@ function handleChange(fmt) {
     }
     row.classList.remove('error');
     render(lat, lon, fmt);
+    updateHint(fmt);
   } catch (err) {
     row.classList.add('error');
     statusEl.textContent = `${fmt.toUpperCase()}: ${err.message}`;
     statusEl.classList.add('err');
+    updateHint(fmt);
   }
+}
+
+function updateHint(fmt) {
+  const el = hintEls[fmt];
+  if (!el) return;
+  const raw = inputs[fmt].value.trim();
+  if (!raw) {
+    el.textContent = HINT_TEMPLATES[fmt];
+    el.classList.remove('preview');
+    return;
+  }
+  try {
+    const { lat, lon } = parseLatLonPair(raw);
+    const canonical = fmt === 'ddm' ? fmtDDM(lat, lon) : fmtDMS(lat, lon);
+    if (canonical === raw) {
+      el.textContent = '';
+      el.classList.remove('preview');
+    } else {
+      el.textContent = '↪ ' + canonical;
+      el.classList.add('preview');
+    }
+  } catch (e) {
+    // Unparseable — stay quiet (the red border + status carry the error)
+    el.textContent = '';
+    el.classList.remove('preview');
+  }
+}
+
+function snapToCanonical(fmt) {
+  const raw = inputs[fmt].value.trim();
+  if (!raw) return;
+  try {
+    const { lat, lon } = parseLatLonPair(raw);
+    const canonical = fmt === 'ddm' ? fmtDDM(lat, lon) : fmtDMS(lat, lon);
+    if (canonical !== raw) {
+      inputs[fmt].value = canonical;
+      document.querySelector(`[data-fmt="${fmt}"]`).classList.remove('error');
+    }
+    updateHint(fmt);
+  } catch (e) { /* leave as-is so the user sees the red border */ }
 }
 
 function onInput(f) {
   if (updating) return;
   if (isTracking()) stopTracking('manual');
+  updateHint(f);
   clearTimeout(changeTimer);
   changeTimer = setTimeout(() => handleChange(f), 250);
 }
@@ -833,6 +909,9 @@ fields.forEach(f => {
     document.querySelectorAll('.row').forEach(r => r.classList.remove('active'));
     document.querySelector(`[data-fmt="${f}"]`).classList.add('active');
   });
+  if (hintEls[f]) {
+    inputs[f].addEventListener('blur', () => snapToCanonical(f));
+  }
 });
 
 // Copy buttons (icon-only, in the 3rd column of each row)
@@ -873,6 +952,7 @@ document.getElementById('clear').addEventListener('click', () => {
   if (isTracking()) stopTracking('manual');
   fields.forEach(f => inputs[f].value = '');
   document.querySelectorAll('.row').forEach(r => r.classList.remove('error'));
+  Object.keys(hintEls).forEach(updateHint);  // reset to template placeholders
   statusEl.innerHTML = '&nbsp;';
   statusEl.classList.remove('err');
   inputs.dd.focus();
@@ -977,6 +1057,9 @@ locateBtn.addEventListener('click', () => {
     document.querySelector('.controls').appendChild(note);
   }
 })();
+
+// Seed DDM/DMS hints so the templates show before any typing
+Object.keys(hintEls).forEach(updateHint);
 
 // Auto-start tracking on load; falls back to empty manual mode if unavailable
 updateLocateBtn();
