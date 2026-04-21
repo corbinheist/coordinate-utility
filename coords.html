@@ -32,7 +32,7 @@
     font-feature-settings: "ss01", "cv02", "cv11";
   }
   body {
-    padding: 48px 24px;
+    padding: 32px 24px;
     display: flex;
     justify-content: center;
     background-image:
@@ -50,8 +50,8 @@
     align-items: baseline;
     justify-content: space-between;
     border-bottom: 1px solid var(--border);
-    padding-bottom: 16px;
-    margin-bottom: 24px;
+    padding-bottom: 14px;
+    margin-bottom: 18px;
   }
   .title {
     font-size: 22px;
@@ -67,15 +67,17 @@
   }
   .row {
     display: grid;
-    grid-template-columns: 68px 1fr auto;
-    gap: 14px;
+    grid-template-columns: 78px 1fr;
+    gap: 8px;
     align-items: stretch;
-    margin-bottom: 10px;
+    margin-bottom: 6px;
   }
   .label {
     display: flex;
     align-items: center;
     justify-content: center;
+    gap: 6px;
+    font-family: inherit;
     font-size: 11px;
     font-weight: 500;
     letter-spacing: 0.18em;
@@ -84,18 +86,37 @@
     border: 1px solid var(--border);
     padding: 0 10px;
     user-select: none;
+    cursor: pointer;
+    transition: color 0.12s ease, border-color 0.12s ease, background 0.12s ease;
+  }
+  .label:hover {
+    color: var(--text);
+    border-color: var(--border-hot);
+  }
+  .label:hover .copy-icon { opacity: 0.85; }
+  .label:active { background: var(--surface-2); }
+  .label.copied {
+    color: var(--green);
+    border-color: var(--green);
+  }
+  .label.copied .copy-icon { opacity: 1; }
+  .copy-icon {
+    opacity: 0.35;
+    flex-shrink: 0;
+    transition: opacity 0.12s ease;
   }
   .row.active .label {
     color: var(--amber);
     border-color: var(--amber-dim);
   }
+  .row.active .label .copy-icon { opacity: 0.7; }
   input {
     background: var(--surface);
     border: 1px solid var(--border);
     color: var(--text);
     font-family: inherit;
-    font-size: 15px;
-    padding: 14px 16px;
+    font-size: 14px;
+    padding: 10px 14px;
     outline: none;
     width: 100%;
     letter-spacing: 0.02em;
@@ -110,31 +131,11 @@
     border-color: var(--red);
     color: var(--red);
   }
-  .copy {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    color: var(--muted);
-    font-family: inherit;
-    font-size: 11px;
-    letter-spacing: 0.2em;
-    padding: 0 16px;
-    cursor: pointer;
-    transition: all 0.12s ease;
-    min-width: 64px;
-  }
-  .copy:hover {
-    color: var(--amber);
-    border-color: var(--amber-dim);
-  }
-  .copy.copied {
-    color: var(--green);
-    border-color: var(--green);
-  }
   .controls {
     display: flex;
-    gap: 10px;
-    margin-top: 20px;
-    padding-top: 20px;
+    gap: 8px;
+    margin-top: 14px;
+    padding-top: 14px;
     border-top: 1px solid var(--border);
     flex-wrap: wrap;
   }
@@ -198,14 +199,20 @@
   }
   .notes b { color: var(--muted); font-weight: 500; }
   @media (max-width: 560px) {
-    body { padding: 24px 12px; }
-    .row { grid-template-columns: 56px 1fr; }
-    .copy { grid-column: 1 / -1; padding: 8px; }
-    input { font-size: 13px; padding: 12px; }
+    body { padding: 18px 12px; }
+    .row { grid-template-columns: 68px 1fr; gap: 6px; }
+    input { font-size: 13px; padding: 9px 11px; }
+    .label { font-size: 10px; letter-spacing: 0.14em; padding: 0 6px; }
   }
 </style>
 </head>
 <body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="icon-copy" viewBox="0 0 16 16">
+    <rect x="2.5" y="2.5" width="9" height="9" fill="none" stroke="currentColor" stroke-width="1.4"/>
+    <rect x="5.5" y="5.5" width="9" height="9" fill="none" stroke="currentColor" stroke-width="1.4"/>
+  </symbol>
+</svg>
 <div class="app">
   <header>
     <div class="title">COORDS</div>
@@ -213,49 +220,40 @@
   </header>
 
   <div class="row" data-fmt="dd">
-    <label class="label" for="dd">DD</label>
-    <input id="dd" spellcheck="false" autocomplete="off" placeholder="47.6062, -122.3321">
-    <button class="copy" data-target="dd" aria-label="Copy decimal degrees">COPY</button>
+    <button class="label" type="button" data-copy="dd" aria-label="Copy decimal degrees"><span>DD</span><svg class="copy-icon" width="10" height="10" aria-hidden="true"><use href="#icon-copy"/></svg></button>
+    <input id="dd" spellcheck="false" autocomplete="off" aria-label="Decimal degrees" placeholder="47.6062, -122.3321">
   </div>
   <div class="row" data-fmt="ddm">
-    <label class="label" for="ddm">DDM</label>
-    <input id="ddm" spellcheck="false" autocomplete="off" placeholder="47° 36.372' N, 122° 19.926' W">
-    <button class="copy" data-target="ddm" aria-label="Copy degrees decimal minutes">COPY</button>
+    <button class="label" type="button" data-copy="ddm" aria-label="Copy degrees decimal minutes"><span>DDM</span><svg class="copy-icon" width="10" height="10" aria-hidden="true"><use href="#icon-copy"/></svg></button>
+    <input id="ddm" spellcheck="false" autocomplete="off" aria-label="Degrees decimal minutes" placeholder="47° 36.372' N, 122° 19.926' W">
   </div>
   <div class="row" data-fmt="dms">
-    <label class="label" for="dms">DMS</label>
-    <input id="dms" spellcheck="false" autocomplete="off" placeholder="47° 36' 22.32&quot; N, 122° 19' 55.56&quot; W">
-    <button class="copy" data-target="dms" aria-label="Copy degrees minutes seconds">COPY</button>
+    <button class="label" type="button" data-copy="dms" aria-label="Copy degrees minutes seconds"><span>DMS</span><svg class="copy-icon" width="10" height="10" aria-hidden="true"><use href="#icon-copy"/></svg></button>
+    <input id="dms" spellcheck="false" autocomplete="off" aria-label="Degrees minutes seconds" placeholder="47° 36' 22.32&quot; N, 122° 19' 55.56&quot; W">
   </div>
   <div class="row" data-fmt="utm">
-    <label class="label" for="utm">UTM</label>
-    <input id="utm" spellcheck="false" autocomplete="off" placeholder="10T 550200 5273800">
-    <button class="copy" data-target="utm" aria-label="Copy UTM">COPY</button>
+    <button class="label" type="button" data-copy="utm" aria-label="Copy UTM"><span>UTM</span><svg class="copy-icon" width="10" height="10" aria-hidden="true"><use href="#icon-copy"/></svg></button>
+    <input id="utm" spellcheck="false" autocomplete="off" aria-label="UTM" placeholder="10T 550200 5273800">
   </div>
   <div class="row" data-fmt="mgrs">
-    <label class="label" for="mgrs">MGRS</label>
-    <input id="mgrs" spellcheck="false" autocomplete="off" placeholder="10T ET 50200 73800">
-    <button class="copy" data-target="mgrs" aria-label="Copy MGRS">COPY</button>
+    <button class="label" type="button" data-copy="mgrs" aria-label="Copy MGRS"><span>MGRS</span><svg class="copy-icon" width="10" height="10" aria-hidden="true"><use href="#icon-copy"/></svg></button>
+    <input id="mgrs" spellcheck="false" autocomplete="off" aria-label="MGRS" placeholder="10T ET 50200 73800">
   </div>
   <div class="row" data-fmt="geo">
-    <label class="label" for="geo">GEO</label>
-    <input id="geo" spellcheck="false" autocomplete="off" placeholder="geo:47.6062,-122.3321">
-    <button class="copy" data-target="geo" aria-label="Copy geo URI">COPY</button>
+    <button class="label" type="button" data-copy="geo" aria-label="Copy geo URI"><span>GEO</span><svg class="copy-icon" width="10" height="10" aria-hidden="true"><use href="#icon-copy"/></svg></button>
+    <input id="geo" spellcheck="false" autocomplete="off" aria-label="geo URI" placeholder="geo:47.6062,-122.3321">
   </div>
   <div class="row" data-fmt="plus">
-    <label class="label" for="plus">PLUS</label>
-    <input id="plus" spellcheck="false" autocomplete="off" placeholder="84VVJM49+F5">
-    <button class="copy" data-target="plus" aria-label="Copy Plus Code">COPY</button>
+    <button class="label" type="button" data-copy="plus" aria-label="Copy Plus Code"><span>PLUS</span><svg class="copy-icon" width="10" height="10" aria-hidden="true"><use href="#icon-copy"/></svg></button>
+    <input id="plus" spellcheck="false" autocomplete="off" aria-label="Plus Code" placeholder="84VVJM49+F5">
   </div>
   <div class="row" data-fmt="hash">
-    <label class="label" for="hash">HASH</label>
-    <input id="hash" spellcheck="false" autocomplete="off" placeholder="c23nb62w2">
-    <button class="copy" data-target="hash" aria-label="Copy Geohash">COPY</button>
+    <button class="label" type="button" data-copy="hash" aria-label="Copy Geohash"><span>HASH</span><svg class="copy-icon" width="10" height="10" aria-hidden="true"><use href="#icon-copy"/></svg></button>
+    <input id="hash" spellcheck="false" autocomplete="off" aria-label="Geohash" placeholder="c23nb62w2">
   </div>
   <div class="row" data-fmt="ecef">
-    <label class="label" for="ecef">ECEF</label>
-    <input id="ecef" spellcheck="false" autocomplete="off" placeholder="-2291628.00, -3637094.00, 4670080.00">
-    <button class="copy" data-target="ecef" aria-label="Copy ECEF">COPY</button>
+    <button class="label" type="button" data-copy="ecef" aria-label="Copy ECEF"><span>ECEF</span><svg class="copy-icon" width="10" height="10" aria-hidden="true"><use href="#icon-copy"/></svg></button>
+    <input id="ecef" spellcheck="false" autocomplete="off" aria-label="ECEF" placeholder="-2291628.00, -3637094.00, 4670080.00">
   </div>
 
   <div class="controls">
@@ -814,21 +812,16 @@ fields.forEach(f => {
   });
 });
 
-// Copy buttons
-document.querySelectorAll('.copy').forEach(btn => {
-  btn.addEventListener('click', async () => {
-    const target = btn.dataset.target;
+// Label acts as the copy button
+document.querySelectorAll('.label[data-copy]').forEach(lbl => {
+  lbl.addEventListener('click', async () => {
+    const target = lbl.dataset.copy;
     const val = inputs[target].value;
     if (!val) return;
     try {
       await navigator.clipboard.writeText(val);
-      btn.classList.add('copied');
-      const orig = btn.textContent;
-      btn.textContent = 'OK';
-      setTimeout(() => {
-        btn.classList.remove('copied');
-        btn.textContent = orig;
-      }, 900);
+      lbl.classList.add('copied');
+      setTimeout(() => lbl.classList.remove('copied'), 900);
     } catch (e) {
       statusEl.textContent = 'clipboard blocked';
       statusEl.classList.add('err');
