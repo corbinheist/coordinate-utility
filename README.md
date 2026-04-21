@@ -1,6 +1,6 @@
 # COORDS
 
-A single-file WGS84 coordinate converter. Opens in live GPS tracking mode and round-trips between DD, DDM, DMS, UTM, MGRS, `geo:` URI, Plus Code, Geohash, and ECEF.
+A single-file WGS84 coordinate converter. Opens in live GPS tracking mode and round-trips between DD, DDM, DMS, UTM, MGRS, ECEF, `geo:` URI, Plus Code, and Geohash.
 
 No build, no dependencies — `coords.html` is the whole app.
 
@@ -11,9 +11,11 @@ No build, no dependencies — `coords.html` is the whole app.
 - **Edit any format.** All nine fields are inputs; editing one parses and re-renders the other eight.
 - **One-click copy.** Each row has a compact icon-only copy button on the right; clicking it (or Tab + Enter) copies that field's value and briefly flashes green. Clicking the label on the left focuses the input for editing.
 - **Forgiving parsers.** Accepts pasted forms with or without degree/minute/second symbols, with or without spaces in MGRS, `lat,lon` or `lat lon`, hemisphere letters or signed numbers, UTM with band letter (`10T`), hemisphere letter (`10N`), or unit suffixes (`550200mE`).
-- **Precision.** DD to 6 dp (~11 cm); DDM/DMS to sub-second; UTM/MGRS to 1 m; Geohash 10-char (~60 cm); Plus Code 10-digit (~14 m); ECEF to 1 cm.
+- **Precision.** DD to 6 dp (~11 cm); DDM/DMS to sub-second; UTM/MGRS to 1 m; ECEF to 1 cm; Plus Code 10-digit (~14 m); Geohash 10-char (~60 cm).
 
 ## Supported formats
+
+Ordered by coordinate system type: geographic (lat/lon) → projected grid → 3D cartesian → URI → compact codes.
 
 | Label | Format                    | Example                                         |
 | ----- | ------------------------- | ----------------------------------------------- |
@@ -22,10 +24,10 @@ No build, no dependencies — `coords.html` is the whole app.
 | DMS   | Degrees / minutes / seconds | `47° 36' 22.32" N, 122° 19' 55.56" W`         |
 | UTM   | Universal Transverse Mercator | `10T 550200 5273800`                        |
 | MGRS  | Military Grid Ref         | `10T ET 50200 73800`                            |
+| ECEF  | Earth-Centered Earth-Fixed (m) | `-2291628.00, -3637094.00, 4670080.00`     |
 | GEO   | `geo:` URI (RFC 5870)     | `geo:47.6062,-122.3321`                         |
 | PLUS  | Plus Code (Open Location Code) | `84VVJM49+F5`                              |
 | HASH  | Geohash (base-32)         | `c23nb62w2`                                     |
-| ECEF  | Earth-Centered Earth-Fixed (m) | `-2291628.00, -3637094.00, 4670080.00`     |
 
 ## Running it
 

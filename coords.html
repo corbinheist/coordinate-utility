@@ -257,6 +257,11 @@
     <input id="mgrs" spellcheck="false" autocomplete="off" placeholder="10T ET 50200 73800">
     <button class="copy" type="button" data-copy="mgrs" aria-label="Copy MGRS"><svg class="copy-icon" width="14" height="14" aria-hidden="true"><use href="#icon-copy"/></svg></button>
   </div>
+  <div class="row" data-fmt="ecef">
+    <label class="label" for="ecef">ECEF</label>
+    <input id="ecef" spellcheck="false" autocomplete="off" placeholder="-2291628.00, -3637094.00, 4670080.00">
+    <button class="copy" type="button" data-copy="ecef" aria-label="Copy ECEF"><svg class="copy-icon" width="14" height="14" aria-hidden="true"><use href="#icon-copy"/></svg></button>
+  </div>
   <div class="row" data-fmt="geo">
     <label class="label" for="geo">GEO</label>
     <input id="geo" spellcheck="false" autocomplete="off" placeholder="geo:47.6062,-122.3321">
@@ -272,11 +277,6 @@
     <input id="hash" spellcheck="false" autocomplete="off" placeholder="c23nb62w2">
     <button class="copy" type="button" data-copy="hash" aria-label="Copy Geohash"><svg class="copy-icon" width="14" height="14" aria-hidden="true"><use href="#icon-copy"/></svg></button>
   </div>
-  <div class="row" data-fmt="ecef">
-    <label class="label" for="ecef">ECEF</label>
-    <input id="ecef" spellcheck="false" autocomplete="off" placeholder="-2291628.00, -3637094.00, 4670080.00">
-    <button class="copy" type="button" data-copy="ecef" aria-label="Copy ECEF"><svg class="copy-icon" width="14" height="14" aria-hidden="true"><use href="#icon-copy"/></svg></button>
-  </div>
 
   <div class="controls">
     <button class="btn preset" data-lat="47.6062" data-lon="-122.3321">SEATTLE</button>
@@ -290,12 +290,12 @@
   <div class="status" id="status">&nbsp;</div>
 
   <div class="notes">
-    <b>Precision:</b> DD 6dp (~11 cm) · DDM/DMS sub-second · UTM/MGRS 1 m · Geohash 10-char (~60 cm) · Plus Code 10-digit (~14 m) · ECEF 1 cm.<br>
+    <b>Precision:</b> DD 6dp (~11 cm) · DDM/DMS sub-second · UTM/MGRS 1 m · ECEF 1 cm · Plus Code 10-digit (~14 m) · Geohash 10-char (~60 cm).<br>
     <b>MGRS:</b> <code>GZD + 100km square + 5+5 digits</code>. Accepts forms with or without spaces.<br>
-    <b>Plus Code:</b> full 10-digit global code only (e.g. <code>84VVJM49+F5</code>). No short-code resolution.<br>
-    <b>Geohash:</b> base-32, case-insensitive. Any length from 1 upward — longer = more precise.<br>
     <b>ECEF:</b> WGS84 geocentric, altitude assumed 0 — non-surface points lose elevation on round-trip.<br>
     <b>geo: URI:</b> RFC 5870. Parses optional altitude and <code>;params</code>; display omits both.<br>
+    <b>Plus Code:</b> full 10-digit global code only (e.g. <code>84VVJM49+F5</code>). No short-code resolution.<br>
+    <b>Geohash:</b> base-32, case-insensitive. Any length from 1 upward — longer = more precise.<br>
     <b>Polar regions:</b> UTM/MGRS valid from 80°S to 84°N only. UPS not implemented.<br>
     <b>Zone exceptions:</b> Norway (32V) and Svalbard (31X–37X) irregularities not handled — edge cases, rare in practice.<br>
     <b>Live tracking:</b> app opens in tracking mode and follows your GPS. Typing in a field or picking a preset switches to manual. Tap <b>◉ TRACK</b> to resume.<br>
@@ -749,7 +749,7 @@ function parseUTM(s) {
 // ============================================================
 // Master state: canonical DD, broadcast to all fields
 // ============================================================
-const fields = ['dd', 'ddm', 'dms', 'utm', 'mgrs', 'geo', 'plus', 'hash', 'ecef'];
+const fields = ['dd', 'ddm', 'dms', 'utm', 'mgrs', 'ecef', 'geo', 'plus', 'hash'];
 const inputs = {};
 fields.forEach(f => inputs[f] = document.getElementById(f));
 const statusEl = document.getElementById('status');
@@ -772,10 +772,10 @@ function render(lat, lon, skip) {
     if (skip !== 'dms')  inputs.dms.value  = fmtDMS(lat, lon);
     if (skip !== 'utm')  inputs.utm.value  = fmtUTM(utm);
     if (skip !== 'mgrs') inputs.mgrs.value = utmToMGRS(utm);
+    if (skip !== 'ecef') inputs.ecef.value = fmtECEF(lat, lon);
     if (skip !== 'geo')  inputs.geo.value  = fmtGeoURI(lat, lon);
     if (skip !== 'plus') inputs.plus.value = encodeOLC(lat, lon);
     if (skip !== 'hash') inputs.hash.value = encodeGeohash(lat, lon);
-    if (skip !== 'ecef') inputs.ecef.value = fmtECEF(lat, lon);
     fields.forEach(f => document.querySelector(`[data-fmt="${f}"]`).classList.remove('error'));
     statusEl.textContent = `lat ${lat.toFixed(6)}  lon ${lon.toFixed(6)}  ·  zone ${utm.zone}${utm.band}`;
     statusEl.classList.remove('err');
@@ -801,14 +801,14 @@ function handleChange(fmt) {
     } else if (fmt === 'mgrs') {
       const utm = mgrsToUTM(raw);
       ({ lat, lon } = utmToLatLon(utm.zone, utm.hemisphere, utm.easting, utm.northing));
+    } else if (fmt === 'ecef') {
+      ({ lat, lon } = parseECEF(raw));
     } else if (fmt === 'geo') {
       ({ lat, lon } = parseGeoURI(raw));
     } else if (fmt === 'plus') {
       ({ lat, lon } = decodeOLC(raw));
     } else if (fmt === 'hash') {
       ({ lat, lon } = decodeGeohash(raw));
-    } else if (fmt === 'ecef') {
-      ({ lat, lon } = parseECEF(raw));
     }
     row.classList.remove('error');
     render(lat, lon, fmt);
