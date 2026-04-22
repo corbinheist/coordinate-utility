@@ -1163,6 +1163,15 @@ altFields.forEach(f => {
     document.querySelectorAll('.row').forEach(r => r.classList.remove('active'));
     const row = document.querySelector(`[data-alt="${f.replace('alt-','')}"]`);
     if (row) row.classList.add('active');
+    // Select all so typing replaces the dual-format display
+    altInputs[f].select();
+  });
+  altInputs[f].addEventListener('blur', () => {
+    // Snap back to dual-format display
+    const raw = altInputs[f].value.trim();
+    if (!raw) return;
+    const val = parseAlt(raw);
+    if (val != null) altInputs[f].value = fmtAlt(val);
   });
 });
 
