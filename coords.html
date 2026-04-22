@@ -239,6 +239,27 @@
     padding-top: 10px;
     border-top: 1px dashed var(--border);
   }
+  .alt-header {
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: 6px;
+  }
+  .alt-unit {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--muted);
+    font-family: inherit;
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0.18em;
+    padding: 4px 12px;
+    cursor: pointer;
+    transition: all 0.12s ease;
+  }
+  .alt-unit:hover {
+    color: var(--amber);
+    border-color: var(--amber-dim);
+  }
   @media (max-width: 560px) {
     body { padding: 18px 12px; }
     .row { grid-template-columns: 62px 1fr 30px; gap: 6px; }
@@ -309,6 +330,9 @@
   </div>
 
   <div class="alt-section">
+    <div class="alt-header">
+      <button class="alt-unit" id="alt-unit-btn" type="button">M</button>
+    </div>
     <div class="row" data-alt="H">
       <label class="label" for="alt-H">H MSL</label>
       <input id="alt-H" spellcheck="false" autocomplete="off" placeholder="orthometric altitude">
@@ -879,18 +903,20 @@ altFields.forEach(f => altInputs[f] = document.getElementById(f));
 let _terrainCache = {};
 let _terrainTimer = null;
 let _lastTerrainKey = null;
+let altUnit = 'm';
+const altUnitBtn = document.getElementById('alt-unit-btn');
 
 function fmtAlt(meters) {
   if (meters == null) return '';
-  const ft = meters * 3.28084;
-  return `${meters.toFixed(1)} m · ${ft.toFixed(1)} ft`;
+  if (altUnit === 'ft') return `${(meters * 3.28084).toFixed(1)} ft`;
+  return `${meters.toFixed(1)} m`;
 }
 
-function parseAlt(s) {
+function parseAlt(s, defaultUnit) {
   if (s == null) return null;
   const t = s.trim();
   if (!t) return null;
-  // Accept dual format "123.4 m · 404.9 ft" — take the meters part
+  // Accept dual format "123.4 m · 404.9 ft" — take the meters part (legacy/copy-paste)
   const dual = t.match(/^(-?\d+(?:\.\d+)?)\s*m\s*·/);
   if (dual) return parseFloat(dual[1]);
   // Accept "100 ft" or "100'"
@@ -899,9 +925,12 @@ function parseAlt(s) {
   // Accept "100 m"
   const mMatch = t.match(/^(-?\d+(?:\.\d+)?)\s*m\s*$/);
   if (mMatch) return parseFloat(mMatch[1]);
-  // Bare number → meters
+  // Bare number → use current display unit
   const bare = parseFloat(t);
-  if (!isNaN(bare)) return bare;
+  if (!isNaN(bare)) {
+    const unit = defaultUnit || altUnit;
+    return unit === 'ft' ? bare / 3.28084 : bare;
+  }
   return null;
 }
 
@@ -1173,6 +1202,13 @@ altFields.forEach(f => {
     const val = parseAlt(raw);
     if (val != null) altInputs[f].value = fmtAlt(val);
   });
+});
+
+// Altitude unit toggle
+altUnitBtn.addEventListener('click', () => {
+  altUnit = altUnit === 'm' ? 'ft' : 'm';
+  altUnitBtn.textContent = altUnit.toUpperCase();
+  renderAltitudes();
 });
 
 // Copy buttons (icon-only, in the 3rd column of each row)
