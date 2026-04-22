@@ -239,12 +239,8 @@
     padding-top: 10px;
     border-top: 1px dashed var(--border);
   }
-  .alt-header {
-    display: flex;
-    justify-content: flex-end;
-    margin-bottom: 6px;
-  }
   .alt-unit {
+    width: 100%;
     background: var(--surface);
     border: 1px solid var(--border);
     color: var(--muted);
@@ -252,9 +248,11 @@
     font-size: 10px;
     font-weight: 500;
     letter-spacing: 0.18em;
-    padding: 4px 12px;
+    padding: 6px 0;
+    margin-top: 6px;
     cursor: pointer;
     transition: all 0.12s ease;
+    text-align: center;
   }
   .alt-unit:hover {
     color: var(--amber);
@@ -330,9 +328,6 @@
   </div>
 
   <div class="alt-section">
-    <div class="alt-header">
-      <button class="alt-unit" id="alt-unit-btn" type="button">M</button>
-    </div>
     <div class="row" data-alt="H">
       <label class="label" for="alt-H">H MSL</label>
       <input id="alt-H" spellcheck="false" autocomplete="off" placeholder="orthometric altitude">
@@ -348,6 +343,7 @@
       <input id="alt-agl" spellcheck="false" autocomplete="off" placeholder="above ground level">
       <button class="copy" type="button" data-copy="alt-agl" aria-label="Copy altitude above ground"><svg class="copy-icon" width="14" height="14" aria-hidden="true"><use href="#icon-copy"/></svg></button>
     </div>
+    <button class="alt-unit" id="alt-unit-btn" type="button">METERS</button>
   </div>
 
   <div class="controls">
@@ -1207,7 +1203,7 @@ altFields.forEach(f => {
 // Altitude unit toggle
 altUnitBtn.addEventListener('click', () => {
   altUnit = altUnit === 'm' ? 'ft' : 'm';
-  altUnitBtn.textContent = altUnit.toUpperCase();
+  altUnitBtn.textContent = altUnit === 'm' ? 'METERS' : 'FEET';
   renderAltitudes();
 });
 
