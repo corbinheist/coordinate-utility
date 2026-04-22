@@ -870,6 +870,8 @@ let changeTimer = null;
 // Altitude state + computation + terrain API
 // ============================================================
 let altState = { h: null, H: null, agl: null, N: null, terrain: null, source: null };
+// macOS/iOS CoreLocation reports MSL altitude, not WGS84 ellipsoidal
+const _gpsAltIsMSL = /Mac|iPhone|iPad|iPod/.test(navigator.platform);
 const altFields = ['alt-H', 'alt-h', 'alt-agl'];
 const altInputs = {};
 altFields.forEach(f => altInputs[f] = document.getElementById(f));
@@ -1260,7 +1262,12 @@ function startTracking() {
       const { latitude, longitude, accuracy, altitude } = pos.coords;
       lastAccuracy = accuracy;
       lastFixTime = new Date();
-      const altOpts = altitude != null ? { h: altitude, source: 'gps' } : undefined;
+      let altOpts;
+      if (altitude != null) {
+        altOpts = _gpsAltIsMSL
+          ? { H: altitude, source: 'gps' }
+          : { h: altitude, source: 'gps' };
+      }
       render(latitude, longitude, undefined, altOpts);
       statusEl.textContent += fmtLiveSuffix();
     },
