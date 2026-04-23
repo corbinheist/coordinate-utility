@@ -272,6 +272,17 @@
     border: 1px solid var(--border);
     background: var(--surface);
   }
+  .map-pulse {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: rgba(255,160,0,0.35);
+    animation: map-pulse 1.8s ease-in-out infinite;
+  }
+  @keyframes map-pulse {
+    0%, 100% { transform: scale(1); opacity: 0.35; }
+    50% { transform: scale(1.8); opacity: 0; }
+  }
   #map .leaflet-control-attribution {
     background: rgba(10,10,10,0.75);
     color: var(--dim);
@@ -1424,8 +1435,10 @@ if (typeof L !== 'undefined') {
   }).addTo(map);
 
   let mapMarker = null;
+  let mapPulse = null;
   let mapCircle = null;
   let mapHadFirstFix = false;
+  const pulseIcon = L.divIcon({ className: '', html: '<div class="map-pulse"></div>', iconSize: [24, 24], iconAnchor: [12, 12] });
 
   updateMap = function(lat, lon) {
     const latlng = [lat, lon];
@@ -1435,6 +1448,18 @@ if (typeof L !== 'undefined') {
       }).addTo(map);
     } else {
       mapMarker.setLatLng(latlng);
+    }
+    // pulsing ring when tracking
+    if (isTracking()) {
+      if (!mapPulse) {
+        mapPulse = L.marker(latlng, { icon: pulseIcon, interactive: false, pane: 'markerPane' }).addTo(map);
+        mapMarker.bringToFront();
+      } else {
+        mapPulse.setLatLng(latlng);
+      }
+    } else if (mapPulse) {
+      mapPulse.remove();
+      mapPulse = null;
     }
     // accuracy circle (only when tracking with a known accuracy)
     const acc = isTracking() ? lastAccuracy : null;
