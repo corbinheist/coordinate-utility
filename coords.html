@@ -45,8 +45,14 @@
   }
   .app {
     width: 100%;
-    max-width: 780px;
+    max-width: 1200px;
+    display: grid;
+    grid-template-columns: minmax(0, 780px) minmax(260px, 1fr);
+    gap: 0 24px;
   }
+  .app > header,
+  .app > .notes { grid-column: 1 / -1; }
+  .main-col { min-width: 0; }
   header {
     display: flex;
     align-items: baseline;
@@ -261,8 +267,8 @@
     border-color: var(--amber-dim);
   }
   #map {
-    height: 260px;
-    margin-top: 18px;
+    min-height: 300px;
+    height: 100%;
     border: 1px solid var(--border);
     background: var(--surface);
   }
@@ -281,6 +287,15 @@
   #map .leaflet-control-zoom a:hover {
     background: var(--surface-2);
     color: var(--text);
+  }
+  @media (max-width: 900px) {
+    .app {
+      grid-template-columns: 1fr;
+      max-width: 780px;
+    }
+    .app > header,
+    .app > .notes { grid-column: 1; }
+    #map { min-height: 260px; height: 260px; margin-top: 18px; }
   }
   @media (max-width: 560px) {
     body { padding: 18px 12px; }
@@ -303,6 +318,7 @@
     <div class="sub">WGS84 · edit any field</div>
   </header>
 
+  <div class="main-col">
   <div class="row" data-fmt="dd">
     <label class="label" for="dd">DD</label>
     <input id="dd" spellcheck="false" autocomplete="off" placeholder="47.6062, -122.3321">
@@ -380,6 +396,7 @@
   </div>
 
   <div class="status" id="status">&nbsp;</div>
+  </div>
 
   <div id="map"></div>
 
