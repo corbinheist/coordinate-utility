@@ -7,6 +7,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1/dist/leaflet.js"></script>
 <style>
   :root {
     --bg: #0a0a0a;
@@ -258,6 +260,28 @@
     color: var(--amber);
     border-color: var(--amber-dim);
   }
+  #map {
+    height: 260px;
+    margin-top: 18px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+  }
+  #map .leaflet-control-attribution {
+    background: rgba(10,10,10,0.75);
+    color: var(--dim);
+    font-family: inherit;
+    font-size: 9px;
+  }
+  #map .leaflet-control-attribution a { color: var(--muted); }
+  #map .leaflet-control-zoom a {
+    background: var(--surface);
+    color: var(--muted);
+    border-color: var(--border);
+  }
+  #map .leaflet-control-zoom a:hover {
+    background: var(--surface-2);
+    color: var(--text);
+  }
   @media (max-width: 560px) {
     body { padding: 18px 12px; }
     .row { grid-template-columns: 62px 1fr 30px; gap: 6px; }
@@ -356,6 +380,8 @@
   </div>
 
   <div class="status" id="status">&nbsp;</div>
+
+  <div id="map"></div>
 
   <div class="notes">
     <b>Precision:</b> DD 6dp (~11 cm) · DDM/DMS sub-second · UTM/MGRS 1 m · ECEF 1 cm · Plus Code 10-digit (~14 m) · Geohash 10-char (~60 cm).<br>
@@ -885,6 +911,7 @@ let watchId = null;
 let lastAccuracy = null;
 let lastFixTime = null;
 let changeTimer = null;
+let updateMap = null; // assigned by map init if Leaflet loads
 
 // ============================================================
 // Altitude state + computation + terrain API
@@ -1039,6 +1066,7 @@ function render(lat, lon, skip, altOpts) {
     statusEl.textContent = status;
     statusEl.classList.remove('err');
     fetchTerrain(lat, lon);
+    if (typeof updateMap === 'function') updateMap(lat, lon);
   } finally {
     updating = false;
   }
@@ -1366,6 +1394,60 @@ Object.keys(hintEls).forEach(updateHint);
 // Auto-start tracking on load; falls back to empty manual mode if unavailable
 updateLocateBtn();
 startTracking();
+
+// ============================================================
+// Map (Leaflet + CartoDB Dark Matter)
+// ============================================================
+if (typeof L !== 'undefined') {
+  const map = L.map('map', { zoomControl: true }).setView([0, 0], 2);
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://carto.com/">CARTO</a>',
+    subdomains: 'abcd',
+    maxZoom: 19
+  }).addTo(map);
+
+  let mapMarker = null;
+  let mapCircle = null;
+  let mapHadFirstFix = false;
+
+  updateMap = function(lat, lon) {
+    const latlng = [lat, lon];
+    if (!mapMarker) {
+      mapMarker = L.circleMarker(latlng, {
+        radius: 6, color: '#ffa000', fillColor: '#ffa000', fillOpacity: 0.9, weight: 2
+      }).addTo(map);
+    } else {
+      mapMarker.setLatLng(latlng);
+    }
+    // accuracy circle (only when tracking with a known accuracy)
+    const acc = isTracking() ? lastAccuracy : null;
+    if (acc && acc < 100000) {
+      if (!mapCircle) {
+        mapCircle = L.circle(latlng, {
+          radius: acc, color: '#ffa000', fillColor: '#ffa000', fillOpacity: 0.08, weight: 1
+        }).addTo(map);
+      } else {
+        mapCircle.setLatLng(latlng).setRadius(acc);
+      }
+    } else if (mapCircle) {
+      mapCircle.remove();
+      mapCircle = null;
+    }
+    // pan to location; zoom in on first fix
+    if (!mapHadFirstFix) {
+      map.setView(latlng, 14);
+      mapHadFirstFix = true;
+    } else {
+      map.panTo(latlng);
+    }
+  };
+
+  // Click on map → set coordinates (manual mode)
+  map.on('click', (e) => {
+    if (isTracking()) stopTracking('manual');
+    render(e.latlng.lat, e.latlng.lng);
+  });
+}
 </script>
 </body>
 </html>
